@@ -1,0 +1,46 @@
+apiVersion: kubeflow.org/v1alpha2
+kind: TFJob
+metadata:
+  name: tfjob-{{ task_id }}
+  namespace: {{namespace}}
+  labels:
+    instanceId: "{{ task_id }}"
+spec:
+  tfReplicaSpecs:
+    Chief:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        spec:
+          containers:
+          - name: tensorflow
+            image: {{ trainer_image }}
+            imagePullPolicy: Always
+            command: ["/bin/bash"]
+            args: [ "-c" ,"source /root/.bashrc && python {{ train_cmd }}" ]
+            env:
+            - name: model_dir
+              value: "{{ model_dir }}"
+            - name: export_dir
+              value: "{{ export_dir }}"
+            - name: coordinator_ip
+              value: "{{ coordinator_ip }}"
+            - name: coordinator_port
+              value: "{{ coordinator_port }}"
+            - name: proxy_ip
+              value: "{{ proxy_ip }}"
+            - name: proxy_port
+              value: "{{ proxy_port }}"
+            - name: app_id
+              value: "{{ app_id }}"
+            - name: datacenter_ip
+              value: "{{ datacenter_ip }}"
+            - name: datacenter_port
+              value: "50052"
+            - name: Local_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: worker_port
+              value: "40001"

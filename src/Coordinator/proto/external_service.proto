@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package fedlearner.common;
+
+/****start****/
+message ModelTrainMeta {
+  string model_uri = 1;  
+  string version = 2;
+  int32 batch_size = 3;
+  int32 worker_num = 4;
+  int32 checkpoint_interval = 5;
+}
+ 
+message DataMeta {   
+  string data_source_name = 1;
+  string train_data_start= 2;
+  string train_data_end = 3;
+  int32 data_num_epoch = 4;
+}
+ 
+message TrainRequest {
+  string app_id = 1;
+  ModelTrainMeta model_train_mata = 2;
+  DataMeta data_meta = 3;
+  //Application leader = 4;
+  //Application follower = 5;
+}
+ 
+message Status {
+  uint32 status = 1;
+  string err_msg = 2;
+  string app_id = 3;
+}
+ 
+service Scheduler {
+  rpc SubmitTrain(TrainRequest) returns (Status); 
+}
+
+/****dataworker, trainer make pair****/
+service StateSynService {
+  rpc Syn(AppSynRequest) returns (Status);
+}
+
+message AppSynRequest {
+  string app_id = 1;
+  repeated ServicePair service_pair = 2;
+  AppCtrlFlag ctrl_flag = 3;
+}
+
+enum AppCtrlFlag {
+  CREATE = 0; 
+  SHUTDOWN = 1; 
+  FINISH = 2; 
+}
+
+message ServicePair {
+  string leader_uuid = 1; 
+  string follower_uuid = 2; 
+  ServiceCtrlFlag ctrl_flag = 3;
+}
+
+enum ServiceCtrlFlag {
+  RST = 0; 
+  SYN = 1; 
+  FIN = 2; 
+}

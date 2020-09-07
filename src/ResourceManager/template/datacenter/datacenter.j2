@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: dc-{{ task_id }}
+  namespace: {{namespace}}
+  labels:
+    role: datacenter
+    instanceId: "{{ task_id }}"
+spec:
+  replicas: 1
+  selector:
+    role: datacenter
+    instanceId: "{{ task_id }}"
+  template:
+    metadata:
+      labels:
+        role: datacenter
+        instanceId: "{{ task_id }}"
+    spec:
+      containers:
+      - name: datacenter
+        image: {{ dc_image }}
+        imagePullPolicy: Always
+        env:
+        - name: train_data_start
+          value: "{{ train_data_start }}"
+        - name: train_data_end
+          value: "{{ train_data_end }}"
+        - name: data_source_name
+          value: "{{ data_source_name }}"
+        - name: data_num_epoch 
+          value: "{{ data_num_epoch }}"
+        - name: MODE 
+          value: "distribute"
+        - name: Local_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        resources:
+          limits:
+            cpu: "2"
+            memory: 1Gi
+

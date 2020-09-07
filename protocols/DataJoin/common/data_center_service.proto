@@ -1,0 +1,47 @@
+
+
+syntax = "proto3";
+package jdfl;
+
+enum DataBlockStatus {
+  OK = 0;
+  NOT_READY = 1;
+  FINISHED = 2;
+  NOT_FOUND = 3;
+  ABORTED = 4;
+}
+
+message DataBlockMeta {
+  string block_id = 1;
+  int64 partition_id = 2;
+  uint32 file_version = 3;
+  int64 start_time = 4;
+  int64 end_time = 5;
+  repeated bytes example_ids = 6;
+  int64 leader_start_index = 7;
+  int64 leader_end_index = 8;
+  int64 follower_restart_index = 9;
+  int64 data_block_index = 10;
+}
+
+message DataBlockRequest {
+  string block_id = 1;
+};
+
+
+message DataBlockInfo {
+  string block_id = 1;
+  string dfs_data_block_dir = 2;
+  DataBlockMeta data_block_meta = 3;
+}
+
+message DataBlockResponse {
+  DataBlockStatus data_block_status = 1;
+  string error_message = 2;
+  DataBlockInfo data_block_info = 3;
+}
+
+
+service DataBlockQueryService {
+  rpc QueryDataBlock (DataBlockRequest) returns (DataBlockResponse) {};
+}

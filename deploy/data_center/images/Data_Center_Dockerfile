@@ -1,0 +1,28 @@
+FROM Base_Mirror
+# replace Base_Mirror with  your base mirror
+
+USER root
+RUN echo "/workspace/9nfl_opensource/src" > /usr/local/lib64/python3.6/site-packages/tmp.pth && \
+    pip install redis==3.0.1  && \
+    pip install yappi  && \
+    pip install grpcio  && \
+    pip install protobuf  && \
+    pip install grpcio-tools  && \
+    pip install Flask==1.0.2  && \
+    pip install requests  && \
+    pip install peewee==3.9.3  && \
+    pip install PyMySQL==0.9.3  && \
+    pip install Flask-SocketIO==3.0.2  && \
+    pip install cachetools  && \
+    #pip uninstall werkzeug -y && \
+    pip install Werkzeug==0.15.3 
+
+ADD ./9nfl_opensource.tar.gz /workspace
+RUN cd /workspace/9nfl_opensource/src && \
+    python -m grpc_tools.protoc -I protocols -Ithirdparty/tensorflow --python_out=. --grpc_python_out=. protocols/DataJoin/common/*.proto
+EXPOSE 50052
+RUN chmod +x /workspace/9nfl_opensource/src/DataJoin/start_server.sh
+RUN chmod 777 -R /workspace/9nfl_opensource/src/DataJoin
+WORKDIR /workspace/9nfl_opensource/src/DataJoin
+
+CMD sh start_server.sh center && sleep 9999d

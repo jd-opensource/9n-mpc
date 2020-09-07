@@ -1,0 +1,7 @@
+-redis_hostname=127.0.0.1
+-redis_port=6379
+-proxy_domain=127.0.0.1:8002
+-coordinator_domain=127.0.0.1:6666
+-port=6666
+-log_dir=./logs
+-logbufsecs=0

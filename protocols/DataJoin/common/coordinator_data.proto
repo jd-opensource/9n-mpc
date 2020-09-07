@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package jdfl;
+
+//
+// coordinator and proxy
+//
+
+service PairService {
+  rpc RegisterUUID(Request) returns (Status);
+  rpc GetPairInfo(Request) returns (PairInfoResponse);
+}
+
+message Status {
+  // 0:  success
+  // others: fail
+  uint32 status = 1; 
+  string err_msg = 2;
+}
+
+message Request {
+  // AppID_Service_index
+  repeated string uuid = 1;
+  // ip:port
+  string ip_port = 2;
+}
+
+message ServicePair {
+  string local_uuid = 1;
+  string remote_uuid = 2;
+}
+
+message PairInfoResponse {
+  Status status = 1;
+  repeated ServicePair service_map = 2;
+}

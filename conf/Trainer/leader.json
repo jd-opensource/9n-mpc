@@ -1,0 +1,11 @@
+{
+    "conf_info": {
+        "model_uri": "fl",
+        "version": "1",
+        "worker_num": 2,
+        "data_source_name": "jdfl-opensource-data-join-v1",
+        "train_data_start": "20191001042452",
+        "train_data_end": "20191001042452",
+        "data_num_epoch": 1
+    }   
+}

@@ -8,7 +8,7 @@
 
 <img src="docs/imgs/p1.png" height = "350" alt="p1" />
 
-<img src="docs/imgs/p2.png" height = "350" alt="p2" />
+<img src="docs/imgs/联邦学习.png" height = "350" alt="p2" />
 
 ## 1 整体架构
 

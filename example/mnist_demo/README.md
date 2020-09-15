@@ -34,6 +34,7 @@ cp pywrap_dlopen_global_flags.py fl-env/lib/python3.6/site-packages/tensorflow_c
 ```
 
 如果不打算使用virutalenv, 请确保tensorflow版本为1.15且protobuf版本为3.8.0.
+
 然后下载[pywrap_dlopen_global_flags.py](https://github.com/tensorflow/tensorflow/blob/r1.15/tensorflow/python/pywrap_dlopen_global_flags.py)并拷贝到tensorflow目录, 例如`site-packages/tensorflow_core/python/`
 
 2. 运行mnist demo
@@ -69,6 +70,7 @@ grep loss logs/leader.log
 编译和部署proxy参见[src/Proxy/README.md](../../src/Proxy/README.md)
 
 需要修改redis配置和对端proxy配置, 默认对端请求监听8001端口,
+
 redis默认使用6379端口
 
 默认同侧请求监听8002端口, 日志在src/Proxy/logs

@@ -1,11 +1,11 @@
 setuptools==41.0.0
+grpcio==1.26.0
+grpcio-tools==1.26.0
 tensorflow==1.15.0
 protobuf==3.8.0
 redis==3.0.1
 jinja2
 yappi
-grpcio
-grpcio-tools
 Flask==1.0.2
 requests
 peewee==3.9.3

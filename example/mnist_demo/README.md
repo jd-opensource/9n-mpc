@@ -10,7 +10,7 @@ cp -r ../../src/Trainer/fl_comm_libs .
 ```
 
 #### 单机版
-1. 准备python3环境
+1. 准备python3.6环境(推荐python3.6.8)
 
 我们推荐使用`virtualenv`来避免python相关的环境问题
 

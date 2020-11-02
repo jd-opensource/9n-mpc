@@ -50,6 +50,9 @@ class HiRedisExecutor {
     return reply.type == REDIS_REPLY_STRING;
   }
 
+  bool IsStatus(const redisReply &reply) {
+    return reply.type == REDIS_REPLY_STATUS;
+  }
  private:
   bool CheckReply(redisReply *reply);
   redisContext *redis_ctx_ = nullptr;

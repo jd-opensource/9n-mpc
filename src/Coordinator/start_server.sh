@@ -5,4 +5,6 @@ if [ ! -d $LOG_DIR ]; then
     mkdir -p $LOG_DIR
 fi
 
-nohup ./output/bin/fl_server --flagfile=../../conf/Coordinator/conf/fl_server.gflags &
+rm -f ${LOG_DIR}/*
+
+nohup ./output/bin/fl_server --flagfile=../../conf/Coordinator/conf/fl_server.gflags >${LOG_DIR}/nohup.out 2>&1 &

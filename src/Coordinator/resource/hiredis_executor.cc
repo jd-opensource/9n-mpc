@@ -138,10 +138,15 @@ bool HiRedisExecutor::Init(
 }
 
 bool HiRedisExecutor::CheckReply(redisReply *reply) {
-  if (!IsString(*reply) || !reply->str) {
+  if (!IsStatus(*reply) || !reply->str) {
+    LOG(ERROR) << "reply.type = " << reply->type;
     return false;
   }
-  return strcmp(reply->str, "OK") == 0;
+  if (strcmp(reply->str, "OK") != 0) {
+    LOG(ERROR) << "reply.str = " << reply->str;
+    return false;
+  }
+  return true;
 }
 
 }  // namespace resource

@@ -1,0 +1,15 @@
+example/mnist_data/leader_train*
+example/mnist_data/follower_train*
+example/mnist_data/leader_test*
+example/mnist_data/follower_test*
+example/mnist_data/data_block*
+example/mnist_data/*.npy
+src/DataJoin/logs*
+src/Proxy/logs/*
+src/Proxy/openresty-1.17.8.1rc1*
+src/Coordinator/bazel*
+src/Coordinator/third_party*
+*nohup.out
+*_pb2.py
+*_pb2_grpc.py
+*__pycache__*

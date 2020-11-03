@@ -21,7 +21,7 @@ copy_file(){
     cp -r ops ${JDFL}
     cp -r rpc ${JDFL}
 
-    cp build/flops_build.sh ${TENSORFLOW}/
+    cp build_script/flops_build.sh ${TENSORFLOW}/
 }
 
 

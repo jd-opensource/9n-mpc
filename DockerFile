@@ -1,0 +1,31 @@
+FROM docker.io/centos:latest
+
+RUN yum install -y gcc gcc-c++ python36-devel net-tools wget vim openssh-clients
+
+RUN ln -s /usr/bin/python3.6 /usr/bin/python &&\
+    pip3.6 install --upgrade pip &&\
+    ln -s /usr/bin/pip3.6 /usr/bin/pip
+
+RUN pip install tensorflow==1.15.0 &&\
+    pip install protobuf==3.8.0
+
+RUN mkdir /workspace
+WORKDIR /workspace
+
+# The COPY command needs to ensure that example and fl_comm_libs 
+# are in the same directory as DockerFile
+COPY src/Trainer/example /workspace/example
+COPY src/Trainer/fl_comm_libs /workspace/fl_comm_libs
+
+
+# Add related software and environment configuration to access HDFS in trainer image here
+
+# demo leader
+# CMD python /workspace/example/mnist_demo/mnist_leader.py
+# demo follower
+# CMD python /workspace/example/mnist_demo/mnist_follower.py
+# demo leader DataCenter
+# CMD python /workspace/example/mnist_demo/dc_leader.py
+# demo follower DataCenter
+# CMD python /workspace/example/mnist_demo/mnist_follower.py
+CMD []

@@ -1,0 +1,6 @@
+grpcio
+setuptools==41.0.0
+protobuf==3.15
+grpcio-tools
+tensorflow==1.15.0
+

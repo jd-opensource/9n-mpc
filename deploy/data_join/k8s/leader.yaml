@@ -1,0 +1,59 @@
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+  name: TASK_NAME
+  labels:
+    role: TASK_NAME
+spec:
+  selector:
+    matchLabels:
+      role: TASK_NAME
+  replicas:
+  template:
+    metadata:
+      labels:
+        role: TASK_NAME
+    spec:
+      containers:
+      - name: TASK_NAME
+        image: IMAGE_PATH
+        resources:
+          requests:
+            cpu: 4
+            memory: 8Gi
+        imagePullPolicy: Always
+        env:
+          - name: ROLE
+            value: leader
+          - name: PARTITION_ID
+            value: "PID"
+          - name: DATA_SOURCE_NAME
+            value: DSN
+          - name: MODE
+            value: distribute
+          - name: RAW_DATA_DIR
+            value: RDD
+          - name: PORT0
+            value: "DATA_JOIN_PORT"
+          - name: RANK_UUID
+            value: DataIntersectionWorker-PID
+          - name: DATA_BLOCK_DIR
+            value: DBD
+          - name: REMOTE_IP
+            value: RI
+          - name: INTERNAL_PROXY
+            value: "internal"
+          - name: RAW_DATA_ITER
+            value: TF_RECORD_ITERATOR
+          - name: EXAMPLE_JOINER
+            value: MEMORY_JOINER
+          - name: HOST_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+      restartPolicy: Always
+

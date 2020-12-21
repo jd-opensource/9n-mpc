@@ -1,0 +1,22 @@
+workspace(name = "federated_learning_server")
+
+local_repository(
+    name = "com_github_grpc_grpc",
+    path = "./third_party/grpc",
+)
+
+local_repository(
+    name = "hiredis",
+    path = "./third_party/hiredis",
+)
+
+new_local_repository(
+    name = "com_github_google_glog",
+    build_file = "./third_party/glog.BUILD",
+    path = "./third_party/glog",
+)
+
+load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
+grpc_deps()
+load("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")
+grpc_extra_deps()

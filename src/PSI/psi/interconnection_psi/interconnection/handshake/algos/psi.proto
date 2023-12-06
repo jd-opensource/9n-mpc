@@ -1,0 +1,50 @@
+// Copyright 2023 Ant Group Co., Ltd.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package org.interconnection.v2.algos;
+
+// [Sphinx doc begin anchor: PsiDataIoProposal]
+message PsiDataInfoProposal {
+  repeated int32 supported_versions = 1;
+
+  // How many items do I've.
+  //
+  // 待求交的 PSI 数据总量
+  int64 item_num = 2;
+
+  // Which rank can receive the psi results.
+  //
+  // 确定 PSI 结果获取方。
+  //
+  // NOTES:
+  //   `-1`: all parties (所有机构都可以拿到交集结果)
+  //   `>= 0`: corresponding rank can get the results (指定机构拿到交集结果)
+  int32 result_to_rank = 3;
+}
+// [Sphinx doc end anchor: PsiDataIoProposal]
+
+// [Sphinx doc begin anchor: PsiDataIoResult]
+message PsiDataInfoResult {
+  int32 version = 1;
+
+  // 确定 PSI 结果获取方。
+  //
+  // NOTES:
+  //   `-1`: all parties (所有机构都可以拿到交集结果)
+  //   `>= 0`: corresponding rank can get the results (指定机构拿到交集结果)
+  int32 result_to_rank = 2;
+}
+// [Sphinx doc end anchor: PsiDataIoResult]

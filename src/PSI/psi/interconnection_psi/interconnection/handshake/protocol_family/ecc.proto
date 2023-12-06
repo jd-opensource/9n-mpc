@@ -1,0 +1,232 @@
+// Copyright 2023 Ant Group Co., Ltd.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package org.interconnection.v2.protocol;
+
+//===================================//
+//            Common defs            //
+//===================================//
+
+// [Sphinx doc begin anchor: EcSuit]
+// Suit of <curve, hash, hash2curve_strategy>
+message EcSuit {
+  // ref enum CurveType
+  int32 curve = 1;
+
+  // ref enum HashType
+  int32 hash = 2;
+
+  // ref enum HashToCurveStrategy
+  int32 hash2curve_strategy = 3;
+}
+// [Sphinx doc end anchor: EcSuit]
+
+enum CurveType {
+  CURVE_TYPE_UNSPECIFIED = 0;
+  CURVE_TYPE_CURVE25519 = 1;
+  CURVE_TYPE_SM2 = 2;
+}
+
+enum HashType {
+  HASH_TYPE_UNSPECIFIED = 0;
+  HASH_TYPE_SM3 = 1;
+
+  HASH_TYPE_SHA_224 = 10;
+  HASH_TYPE_SHA_256 = 11;
+  HASH_TYPE_SHA_384 = 12;
+  HASH_TYPE_SHA_512 = 13;
+
+  HASH_TYPE_SHA3_224 = 20;
+  HASH_TYPE_SHA3_256 = 21;
+  HASH_TYPE_SHA3_384 = 22;
+  HASH_TYPE_SHA3_512 = 23;
+
+  HASH_TYPE_SHAKE_256 = 30;
+}
+
+enum HashToCurveStrategy {
+  HASH_TO_CURVE_STRATEGY_UNSPECIFIED = 0;
+
+  // https://eprint.iacr.org/2009/226.pdf
+  // Auto select the most suitable algorithm:
+  //  - SHA2: select between SHA-224, SHA-256, SHA-384, SHA-512
+  //  - SHA3: select between SHA3-224, SHA3-256, SHA3-384, SHA3-512
+  //  - SM: Current only support SM3.
+  // Performance: This method is very fast, but it is susceptible to timing
+  // attacks.
+  HASH_TO_CURVE_STRATEGY_TRY_AND_INCREMENT = 1;
+
+  // Just like TryAndIncrement; but use re-hash instead of increment when try
+  // fails.
+  HASH_TO_CURVE_STRATEGY_TRY_AND_REHASH = 2;
+
+  // Directly output the hash value as the x-coordinate of the point without any
+  // verification. And there is no y-coordinate info in output point.
+
+  // The applicable scenarios of this scheme are very limited, and the following
+  // requirements must be met:
+  //  - The calculation of points on curve depends only on the x-coordinate
+  //  - The usage scenario of the curve allows any hash value to be used as the
+  //    initial point, even if the point is not on the curve.
+  // It is currently known that this strategy can be safely used when curve is
+  // Curve25519 and scene is ECDH. Do not choose this strategy for other
+  // purpose.
+  HASH_TO_CURVE_STRATEGY_DIRECT_HASH_AS_POINT_X = 3;
+
+  // Below is IRTF CFRG hash-to-curve standard (draft):
+  // https://datatracker.ietf.org/doc/draft-irtf-cfrg-hash-to-curve/
+  //
+  // IRTF suits consist of:
+  // "CURVE_ID || "_" || HASH_ID || "_" || MAP_ID || "_" || ENC_VAR"
+  // We regard MAP_ID and ENC_VAR as a whole as HASH_TO_CURVE strategy.
+  // MAP_ID has the following methods:
+  // - "SVDW" for Shallue-van de Woestijne method
+  // - "SSWU" for Simplified SWU
+  // - "ELL2" for Elligator 2 method
+  // ENC_VAR has the following methods:
+  // - "RO" for hash_to_curve
+  //   Performance: This strategy takes 12 times longer than TryAndIncrement on
+  //   SM2
+  // - "NU" for encode_to_curve
+  //   Performance: This strategy takes 6 times longer than TryAndIncrement on
+  //   SM2
+  //   Warning: The output of this strategy is not uniformly distributed on the
+  //   elliptic curve G.
+  HASH_TO_CURVE_STRATEGY_IRTF_SSWU_RO = 10;
+  HASH_TO_CURVE_STRATEGY_IRTF_SSWU_NU = 11;
+  HASH_TO_CURVE_STRATEGY_IRTF_ELL2_RO = 12;
+  HASH_TO_CURVE_STRATEGY_IRTF_ELL2_NU = 13;
+}
+
+// Legal EcSuit triplet collocations
+// 合法的 EcSuit 三元组搭配（开放列表）
+//
+// Recommended combinations:
+// 推荐搭配
+// +------------+---------+------------------------+
+// |    Curve   |   Hash  |       Hash2Curve       |
+// +------------+---------+------------------------+
+// | Curve25519 | SHA-256 | DIRECT_HASH_AS_POINT_X |
+// +------------+---------+------------------------+
+// |     SM2    |   SM3   |    TRY_AND_INCREMENT   |
+// +------------+---------+------------------------+
+//
+// Other combinations:
+// 其它搭配
+// Enterprises/platforms with spare energy can consider implementing the
+// following solutions, especially the IRTF strategies, which provides higher
+// security and is also recommended.
+// 有余力的企业/平台可以考虑实现下述方案，特别是 IRTF 方案提供更高的安全性，是非常有意义的
+// +------------+---------+------------------------+
+// |    Curve   |   Hash  |       Hash2Curve       |
+// +------------+---------+------------------------+
+// | Curve25519 | SHA-256 | DIRECT_HASH_AS_POINT_X |
+// +------------+---------+------------------------+
+// | Curve25519 |   SM3   | DIRECT_HASH_AS_POINT_X |
+// +------------+---------+------------------------+
+// |     SM2    | SHA-256 |    TRY_AND_INCREMENT   |
+// +------------+---------+------------------------+
+// |     SM2    | SHA-256 |     TRY_AND_REHASH     |
+// +------------+---------+------------------------+
+// |     SM2    |   SM3   |    TRY_AND_INCREMENT   |
+// +------------+---------+------------------------+
+// |     SM2    |   SM3   |     TRY_AND_REHASH     |
+// +------------+---------+------------------------+
+// |     SM2    |   SM3   |      IRTF_SSWU_RO      |
+// +------------+---------+------------------------+
+// | Curve25519 | SHA-256 |      IRTF_ELL2_RO      |
+// +------------+---------+------------------------+
+
+// Elliptic curve point Octet-String format
+// See SECG standard for details: SEC 1, section 2.3. https://www.secg.org/
+enum PointOctetFormat {
+  POINT_OCTET_FORMAT_UNSPECIFIED = 0;
+
+  // 不压缩，多个点连续存储，例如 x1||y1||x2||y2||x3||y3...
+  // x 和 y 都占用整数个 byte，
+  // 例如 255bits 的数字占用 32bytes, 小端序，buffer 最后1bit补0
+  // 对于 X25529, 本身只有 X 坐标，则多个点序列化只排列 X 坐标
+  POINT_OCTET_FORMAT_UNCOMPRESSED = 1;
+
+  // ANSI X9.62 compressed format
+  // The point is encoded as z||x, where the octet z specifies which solution of
+  // the quadratic equation y is.
+  // if y is even, output 0x02||x
+  // if y is odd, output 0x03||x
+  // if point is inf, output 0x00
+  POINT_OCTET_FORMAT_X962_COMPRESSED = 2;
+
+  // ANSI X9.62 uncompressed format
+  // The point is encoded as z||x||y, where z is the octet 0x04
+  POINT_OCTET_FORMAT_X962_UNCOMPRESSED = 3;
+
+  // ANSI X9.62 hybrid format
+  // The point is encoded as z||x||y, where the octet z specifies which solution
+  // of the quadratic equation y is. It's basically the uncompressed encoding
+  // but the first byte encodes the evenness of y just like in compressed
+  // format. It's designated by 0x06 and 0x07 in the first byte, and they have
+  // the same meaning as 0x02 and 0x03 in compressed.
+  POINT_OCTET_FORMAT_X962_HYBRID = 4;
+};
+
+//===================================//
+//  Protos used in HandshakeRequest  //
+//===================================//
+
+// [Sphinx doc begin anchor: EccProtocolProposal]
+message EccProtocolProposal {
+  repeated int32 supported_versions = 1;
+
+  // list of <curve, hash, hash2curve_strategy> suits
+  repeated EcSuit ec_suits = 2;
+
+  // ref enum PointOctetFormat
+  // 点的序列化格式
+  repeated int32 point_octet_formats = 3;
+
+  // Whether to enable the optimization method: secondary ciphertext truncation
+  bool support_point_truncation = 4;
+}
+// [Sphinx doc end anchor: EccProtocolProposal]
+
+//===================================//
+//  Protos used in HandshakeResponse  //
+//===================================//
+
+// [Sphinx doc begin anchor: EccProtocolResult]
+message EccProtocolResult {
+  int32 version = 1;
+
+  // The chosen suit
+  EcSuit ec_suit = 2;
+
+  // The chosen octet format
+  int32 point_octet_format = 3;
+
+  // optimization method: secondary ciphertext truncation
+  // -1 means disable this optimization (do not truncation)
+  int32 bit_length_after_truncated = 4;
+
+  // Which rank can receive the psi results.
+  //
+  // 确定 PSI 结果获取方。
+  //
+  // NOTES:
+  //   `-1`: all parties (所有机构都可以拿到交集结果)
+  //   `>= 0`: corresponding rank can get the results (指定机构拿到交集结果)
+  int32 result_to_rank = 5;
+}
+// [Sphinx doc end anchor: EccProtocolResult]

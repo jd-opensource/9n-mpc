@@ -1,0 +1,16 @@
+[package]
+name = "crypto"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "crypto"
+crate-type = ["cdylib"]
+
+[dependencies]
+arrow = { version = "49.0.0", features = ["pyarrow"] }
+curve25519-dalek = "4.1.1"
+pyo3 = { version = "0.20.0", features = ["extension-module"] } 
+rand = "0.8.5"
+sha3 = "0.10.8"

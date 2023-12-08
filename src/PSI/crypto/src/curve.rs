@@ -128,7 +128,10 @@ pub(crate) fn point_octet_unmarshal(
     }
 
     let mut build = BinaryBuilder::new();
-    let block_size = data.len() / count;
+    if count == 0 {
+        return Ok(PyArrowType(build.finish().into_data()));
+    }
+    let block_size: usize = data.len() / count;
 
     for i in 0..count {
         build.append_value(&data[i * block_size..i * block_size + block_size])

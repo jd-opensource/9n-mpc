@@ -34,6 +34,7 @@ import logging
 import requests
 import zlib
 import json
+import struct
 from pyarrow.dataset import dataset
 #from workerAuth.authClient import AuthClient
 
@@ -325,6 +326,8 @@ def get_hash(array, type_="str"):
         return [hash16(x.to_bytes(8, byteorder='big', signed=False)) for x in array]
     elif type_ == "bytes":
         return [hash16(x) for x in array]
+    elif type_ == "float":
+        return [hash16(struct.pack('f', x)) for x in array]
     else:
         raise Exception("{} is not supported.".format(type_))
 
@@ -369,6 +372,8 @@ def add_hash_column(df: pa.Table, hashed_column_name: str, to_hash_column_name: 
         hashed_id = get_hash(id_list, "int")
     elif isinstance(id_list[0], bytes):
         hashed_id = get_hash(id_list, "bytes")
+    elif isinstance(id_list[0], float):
+        hashed_id = get_hash(id_list, "float")
     else:
         raise Exception("{} is not supported.".format(type(id_list[0])))
 
@@ -673,6 +678,9 @@ class BlockDispatchActor:
                                    False, self.with_head, csv_delimiter)
         else:
             for i, data_output_ref in enumerate(data_output_refs):
+                if data_output_ref is None:
+                    logging.info(f"output_single_output_file block={i} with null data")
+                    continue
                 data_output = ray.get(data_output_ref)
                 if data_output is None:
                     logging.info(f"output_single_output_file block={i} with null data")
@@ -871,10 +879,10 @@ class PsiPirActor:
         self._sync_block_status(block_id, BlockStatus.PROCSSING, None, None)
         recTableData, real_example_id_name = self._read_block_data(
             data_protocol, data_format, block_data, csv_delimiter)
-        if recTableData.num_rows <= 0 or recTableData.num_columns <= 0:
-            self._sync_block_status(
-                block_id, BlockStatus.PROCESSED, (0, 0, 0), (0, 0, 0))
-            return (self.actor_index, block_id, None)
+        # if recTableData.num_rows <= 0 or recTableData.num_columns <= 0:
+        #     self._sync_block_status(
+        #         block_id, BlockStatus.PROCESSED, (0, 0, 0), (0, 0, 0))
+        #     return (self.actor_index, block_id, None)
 
         # generate empty result
         recBatchOutSchema = recTableData.schema
@@ -893,7 +901,12 @@ class PsiPirActor:
             recTableData, [STATIC_HASHED_VALUE_COLUMN_NAMES, real_example_id_name])
 
         # real action
-        recBatchIn = recTableData.to_batches()[0]
+        recTableDataBatches = recTableData.to_batches()
+        if len(recTableDataBatches) == 0:
+            recBatchIn = emptyRecBatchOut
+        else:
+            recBatchIn = recTableDataBatches[0]
+        # recBatchIn = recTableData.to_batches()[0]
         logging.info(f"****do_action begin actual do block_id={block_id} actor_index={self.actor_index}"
                      f" join_type={self.join_type} original_data_status={original_data_status} rows={recBatchIn.num_rows}")
         if self.join_type == JoinType.PSI:
@@ -1108,6 +1121,33 @@ def generate_result(join_type, aggre_results, output_dir):
     return ret_result
 
 
+def add_schema_to_all_empty_blocks(blocks):
+    from ray.data.block import BlockAccessor
+    @ray.remote
+    def extract_schema(block):
+        block = BlockAccessor.for_block(block)
+        if block.num_rows() > 0:
+            return block.slice(0, 0, True)
+        else:
+            return None
+
+    need_add_schema_block_indexs = []
+    blocks_schema = ray.get([extract_schema.remote(block) for block in blocks])
+    new_empty_block = None
+    for i, schema in enumerate(blocks_schema):
+        if schema is None:
+            need_add_schema_block_indexs.append(i)
+        else:
+            new_empty_block = schema
+
+    if new_empty_block is None:
+        raise Exception(f"all blocks is empty")
+
+    for need_add_schema_block_index in need_add_schema_block_indexs:
+        blocks[need_add_schema_block_index] = ray.put(new_empty_block)
+
+    return blocks
+
 def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, local_ip: str, local_start_port, remote_proxy_address, bucket_num,
             role_type, local_domain, remote_domain, redis_addr, redis_pwd, output_dir, max_actors=2, csv_delimiter=",", avg_actor_cpus=1.0):
     dispatch_actor = BlockDispatchActor.remote(app_id=app_id, data_dir_or_path=data_path, with_head=with_head,
@@ -1125,6 +1165,8 @@ def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, loca
     if data_type == fs.FileType.File:
         data_blocks = repartition_for_existed_data(
             data_protocol, data_format, data_path, with_head, example_id_name, bucket_num, csv_delimiter)
+        data_blocks = add_schema_to_all_empty_blocks(data_blocks)
+
         ray.get(dispatch_actor.update_blocks.remote(data_blocks))
 
     # adjust
@@ -1354,5 +1396,5 @@ if __name__ == "__main__":
         set_node_status(args.status_server, actual_app_id,
                         0, 0, result=json.dumps(results))
     except Exception as e:
-        logging.error(f"error", e)
+        logging.error(f"error: {e}")
         set_node_status(args.status_server, actual_app_id, 0, 500)

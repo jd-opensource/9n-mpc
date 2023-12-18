@@ -42,7 +42,7 @@ pip3 install --force-reinstall dist/interconnection_psi-0.0.0-py3-none-any.whl
 
 Main PSI program.
 
-### Build Image
+## Build Image
 
 To build the operator into an image:
 

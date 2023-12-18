@@ -13,16 +13,6 @@
 ## 2 基础组件
 
 
-<style>
-table {
-  border-collapse: collapse;
-}
-
-th, td {
-  border: 1px solid black;
-  padding: 8px;
-}
-</style>
 
 <table>
   <tr>
@@ -50,15 +40,15 @@ th, td {
     <td>JD</td>
   </tr>
   <tr>
-    <td>nacos</td>
-    <td>2c4g</td>
-    <td>nacos/nacos-server:v2.2.3</td>
-    <td>公开</td>
-  </tr>
-  <tr>
     <td>proxy</td>
     <td>1c2g</td>
     <td>proxy_v4.1</td>
+    <td>公开</td>
+  </tr>
+ <tr>
+    <td>nacos</td>
+    <td>2c4g</td>
+    <td>nacos/nacos-server:v2.2.3</td>
     <td>公开</td>
   </tr>
   <tr>
@@ -495,13 +485,9 @@ spec:
 
 ```
 
-## 7 nacos
+## 7 proxy
+部署proxy之前，需要先在redis中配置需要通信一方的proxy地址，key的格式为：target:$PROXY_TARGET，值为proxy的公网ip:port。
 
-nacos的安装过程可参照网上公开教程。
-
-nacos启动成功后，首先创建nacos命名空间，建议与K8S命名空间以及通信proxy_target保持一致接口，即格式为PROXY_TARGET="mpc-$COMPANY-cu"。然后创建三个GROUP，名称分别为APPLICATION_GROUP、K8S_GROUP、FUNCTOR_GROUP。
-
-## 8 proxy
 需要先创建4个configmap，然后创建proxy。
 1. 创建配置configmap nginx-conf
 - NGINX_CONF=nginx-conf
@@ -1025,6 +1011,11 @@ spec:
 
 ```
 
+## 8 nacos
+
+nacos的安装过程可参照网上公开教程。
+
+nacos主要用来配置coordinator启动需要的文件。将在第9小节中介绍具体配置方式。
 
 ## 9 coordinator
 
@@ -1346,10 +1337,29 @@ target.token=test
 ```
 
 - 2.2 K8S_GROUP
-需要配置PSI算子的启动YAML，放在PSI章节。
+  - data_id=psi.yaml
+该分组下只有一个配置，即需要配置PSI算子的启动YAML，见第10小节中yaml。
 
 - 2.3 FUNCTOR_GROUP
-完成求交需求时，该分组下内容无需关注。
+  - data_id=psi.properties
+    ```
+    tmp-dir=/mnt/tmp
+    send-back=true
+    log-level=DEBUG
+    cpu-cores=16
+    csv-header=true
+    ```
+
+- 2.4 nacos配置
+  - 可以通过浏览器配置
+    - 没有网络隔离时采用该种方式，直接打开nacos自带前端页面访问nacos。按以下步骤进行：
+      - 创建命名空间$NAMESPACE
+      - 创建分组APPLICATION_GROUP，创建配置文件application.properties，将coordinator配置文件填入并发布。
+      - 创建分组K8S_GROUP，创建配置文件psi.yaml。
+      - 创建分组FUNCTOR_GROUP，创建配置文件psi.properties。
+  - 无法通过浏览器配置
+    - 若部署服务的机器与本地机器有隔离，可以通过api的方式配置，将以上信息配置进入。
+    - 可参考配置脚本：nacos_init.sh
 
 
 3. 创建coordinator配置configmap

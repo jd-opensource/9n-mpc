@@ -1,7 +1,0 @@
-#protobuf need HAVE_ZLIB=1
-build --copt -DHAVE_ZLIB=1
-build --copt=-g
-build --copt=-Wno-comment
-build --copt=-DRAPIDJSON_HAS_STDSTRING
-build --define with_glog=true
-build -c opt

@@ -4,4 +4,6 @@
 提供创建文件夹功能
 提供文件夹的文件列表功能
 提供文件的表头读取功能
+
+镜像构建：直接使用9nm-mpc/src/FileService路径下Dockerfile即可
    

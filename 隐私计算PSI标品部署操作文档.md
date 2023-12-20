@@ -12,6 +12,7 @@
 
 ## 2 基础组件
 
+![img.png](img.png)
 
 
 <table>

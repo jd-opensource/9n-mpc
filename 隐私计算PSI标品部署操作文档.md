@@ -7,7 +7,7 @@
     - 机器操作系统centos7.6-7.9
     - 机器最低规格8c16g
 
-- NFS云存储
+- NFS云存储/PVC
 - 公网域名
 
 ## 2 基础组件
@@ -25,7 +25,7 @@
   <tr>
     <td>redis</td>
     <td>0.5c1g</td>
-    <td>redis_v3.0</td>
+    <td>tianwen3/redis:v3.0</td>
     <td>公开</td>
   </tr>
   <tr>
@@ -43,7 +43,7 @@
   <tr>
     <td>proxy</td>
     <td>1c2g</td>
-    <td>proxy_v4.1</td>
+    <td>tianwen3/proxy:v4.1</td>
     <td>公开</td>
   </tr>
  <tr>
@@ -85,7 +85,7 @@ kind: ConfigMap
 metadata:
   name: redis
 data:
-  redis.conf:
+  redis.conf: |
     bind 0.0.0.0
     protected-mode no
     port $REDIS_POD_PORT

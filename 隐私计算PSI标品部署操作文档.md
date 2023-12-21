@@ -548,8 +548,9 @@ data:
 
 2. 创建配置configmap mpc-conf
 - MPC_CONF=mpc-conf
-- PROXY_PORT_OUT
-- PROXY_PORT_IN
+- PROXY_PORT_OUT：外部请求入proxy端口，coordinator的grpc.proxy.local-port配置
+- PROXY_PORT_IN：内部请求出proxy接口，coordinator的grpc.proxy.port配置
+- PROXY_NODE_IP：本侧PROXY ip
 
 ```
 apiVersion: v1
@@ -586,17 +587,8 @@ data:
         grpc_read_timeout 1800s;
         grpc_send_timeout 1800s;
     
-        location /authprotocol.AuthService/ {
-            grpc_pass grpc://mpc-auth-pre1grpc.mpc-9n.svc.sq01.n.jd.local:80;
-            ## product server
-            ## grpc_pass grpc://mpc-auth-grpc.mpc-9n.svc.sq01.n.jd.local;
-        }
-    
         location /gateway_protocol.Gateway/ {
-            ## pre prod test server
             grpc_pass grpc://mpc-zeebe-gateway-test.jd.local:2000;
-            ## product server
-            ## grpc_pass grpc://mpc-zeebe-gateway.jd.local:80;
         }
     
         location / {
@@ -658,13 +650,13 @@ data:
         ## FOR auth service
         ## Fix send to JD domain
         location /authprotocol.AuthService/ {
-            grpc_pass grpcs://11.136.250.29:32164;
+            grpc_pass grpcs://$PROXY_NODE_IP:$PROXY_PORT_OUT;
         }
     
         ## FOR camunda zeebe service
         ## Fix send to JD domain
         location /gateway_protocol.Gateway/ {
-            grpc_pass grpcs://11.136.250.29:32164;
+            grpc_pass grpcs://$PROXY_NODE_IP:$PROXY_PORT_OUT;
         }
     
         location / {

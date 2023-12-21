@@ -925,35 +925,20 @@ data:
 
 ```
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cert
+  namespace: mpc-chk-test
 data:
-  k8sconfig.yaml: |+
-    apiVersion: v1
-    clusters:
-    - cluster:
-        server: 
-        insecure-skip-tls-verify: true
-      name: kubernetes
-    contexts:
-    - context:
-        cluster: kubernetes
-        user: basic-authentication
-      name: basic-authentication@kubernetes
-    - context:
-        cluster: kubernetes
-        user: cert-authentication
-      name: cert-authentication@kubernetes
-    current-context: cert-authentication@kubernetes
-    kind: Config
-    preferences: {}
-    users:
-    - name: basic-authentication
-      user:
-        username: kube-admin
-        password: 
-    - name: cert-authentication
-      user:
-        client-certificate-data: 
-        client-key-data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    -----END CERTIFICATE-----
+  server_cert.pem: |
+    -----BEGIN CERTIFICATE-----
+    -----END CERTIFICATE-----
+  server_private.pem: |
+    -----BEGIN PRIVATE KEY-----
+    -----END PRIVATE KEY-----
 ```
 
 5. 创建proxy deployment

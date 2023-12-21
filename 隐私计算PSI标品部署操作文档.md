@@ -1027,7 +1027,582 @@ spec:
 
 ## 8 nacos
 
-nacos的安装过程可参照网上公开教程。
+nacos主要用于给coordinator配置信息，由于一些特定的原因，请将nacos与其它组件部署在同一个集群上，不要使用其它集群上现有的nacos。
+
+1. 初始化数据库
+```aidl
+-- MySQL dump 10.13  Distrib 8.0.26, for Linux (x86_64)
+--
+-- Host: 11.136.250.30    Database: nacos
+-- ------------------------------------------------------
+-- Server version       8.0.31
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `config_info`
+--
+
+DROP TABLE IF EXISTS `config_info`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `config_info` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `data_id` varchar(255) COLLATE utf8mb3_bin NOT NULL COMMENT 'data_id',
+  `group_id` varchar(128) COLLATE utf8mb3_bin DEFAULT NULL,
+  `content` longtext COLLATE utf8mb3_bin NOT NULL COMMENT 'content',
+  `md5` varchar(32) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'md5',
+  `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `src_user` text COLLATE utf8mb3_bin COMMENT 'source user',
+  `src_ip` varchar(50) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'source ip',
+  `app_name` varchar(128) COLLATE utf8mb3_bin DEFAULT NULL,
+  `tenant_id` varchar(128) COLLATE utf8mb3_bin DEFAULT '',
+  `c_desc` varchar(256) COLLATE utf8mb3_bin DEFAULT NULL,
+  `c_use` varchar(64) COLLATE utf8mb3_bin DEFAULT NULL,
+  `effect` varchar(64) COLLATE utf8mb3_bin DEFAULT NULL,
+  `type` varchar(64) COLLATE utf8mb3_bin DEFAULT NULL,
+  `c_schema` text COLLATE utf8mb3_bin,
+  `encrypted_data_key` text COLLATE utf8mb3_bin NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_configinfo_datagrouptenant` (`data_id`,`group_id`,`tenant_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1963 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin COMMENT='config_info';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `config_info_aggr`
+--
+
+DROP TABLE IF EXISTS `config_info_aggr`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `config_info_aggr` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `data_id` varchar(255) COLLATE utf8mb3_bin NOT NULL COMMENT 'data_id',
+  `group_id` varchar(128) COLLATE utf8mb3_bin NOT NULL COMMENT 'group_id',
+  `datum_id` varchar(255) COLLATE utf8mb3_bin NOT NULL COMMENT 'datum_id',
+  `content` longtext COLLATE utf8mb3_bin NOT NULL,
+  `gmt_modified` datetime NOT NULL,
+  `app_name` varchar(128) COLLATE utf8mb3_bin DEFAULT NULL,
+  `tenant_id` varchar(128) COLLATE utf8mb3_bin DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_configinfoaggr_datagrouptenantdatum` (`data_id`,`group_id`,`tenant_id`,`datum_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `config_info_beta`
+--
+
+DROP TABLE IF EXISTS `config_info_beta`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `config_info_beta` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `data_id` varchar(255) COLLATE utf8mb3_bin NOT NULL COMMENT 'data_id',
+  `group_id` varchar(128) COLLATE utf8mb3_bin NOT NULL COMMENT 'group_id',
+  `app_name` varchar(128) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'app_name',
+  `content` longtext COLLATE utf8mb3_bin NOT NULL COMMENT 'content',
+  `beta_ips` varchar(1024) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'betaIps',
+  `md5` varchar(32) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'md5',
+  `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `src_user` text COLLATE utf8mb3_bin COMMENT 'source user',
+  `src_ip` varchar(50) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'source ip',
+  `tenant_id` varchar(128) COLLATE utf8mb3_bin DEFAULT '',
+  `encrypted_data_key` text COLLATE utf8mb3_bin NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_configinfobeta_datagrouptenant` (`data_id`,`group_id`,`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin COMMENT='config_info_beta';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `config_info_tag`
+--
+
+DROP TABLE IF EXISTS `config_info_tag`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `config_info_tag` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `data_id` varchar(255) COLLATE utf8mb3_bin NOT NULL COMMENT 'data_id',
+  `group_id` varchar(128) COLLATE utf8mb3_bin NOT NULL COMMENT 'group_id',
+  `tenant_id` varchar(128) COLLATE utf8mb3_bin DEFAULT '' COMMENT 'tenant_id',
+  `tag_id` varchar(128) COLLATE utf8mb3_bin NOT NULL COMMENT 'tag_id',
+  `app_name` varchar(128) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'app_name',
+  `content` longtext COLLATE utf8mb3_bin NOT NULL COMMENT 'content',
+  `md5` varchar(32) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'md5',
+  `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `src_user` text COLLATE utf8mb3_bin COMMENT 'source user',
+  `src_ip` varchar(50) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'source ip',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_configinfotag_datagrouptenanttag` (`data_id`,`group_id`,`tenant_id`,`tag_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin COMMENT='config_info_tag';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `config_tags_relation`
+--
+
+DROP TABLE IF EXISTS `config_tags_relation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `config_tags_relation` (
+  `id` bigint NOT NULL COMMENT 'id',
+  `tag_name` varchar(128) COLLATE utf8mb3_bin NOT NULL COMMENT 'tag_name',
+  `tag_type` varchar(64) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'tag_type',
+  `data_id` varchar(255) COLLATE utf8mb3_bin NOT NULL COMMENT 'data_id',
+  `group_id` varchar(128) COLLATE utf8mb3_bin NOT NULL COMMENT 'group_id',
+  `tenant_id` varchar(128) COLLATE utf8mb3_bin DEFAULT '' COMMENT 'tenant_id',
+  `nid` bigint NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`nid`),
+  UNIQUE KEY `uk_configtagrelation_configidtag` (`id`,`tag_name`,`tag_type`),
+  KEY `idx_tenant_id` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin COMMENT='config_tag_relation';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `group_capacity`
+--
+
+DROP TABLE IF EXISTS `group_capacity`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `group_capacity` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `group_id` varchar(128) COLLATE utf8mb3_bin NOT NULL DEFAULT '' COMMENT 'Group ID',
+  `quota` int unsigned NOT NULL DEFAULT '0' COMMENT '0',
+  `usage` int unsigned NOT NULL DEFAULT '0',
+  `max_size` int unsigned NOT NULL DEFAULT '0' COMMENT '0',
+  `max_aggr_count` int unsigned NOT NULL DEFAULT '0' COMMENT '0',
+  `max_aggr_size` int unsigned NOT NULL DEFAULT '0' COMMENT '0',
+  `max_history_count` int unsigned NOT NULL DEFAULT '0',
+  `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_group_id` (`group_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin COMMENT='Group';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `his_config_info`
+--
+
+DROP TABLE IF EXISTS `his_config_info`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `his_config_info` (
+  `id` bigint unsigned NOT NULL,
+  `nid` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data_id` varchar(255) COLLATE utf8mb3_bin NOT NULL,
+  `group_id` varchar(128) COLLATE utf8mb3_bin NOT NULL,
+  `app_name` varchar(128) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'app_name',
+  `content` longtext COLLATE utf8mb3_bin NOT NULL,
+  `md5` varchar(32) COLLATE utf8mb3_bin DEFAULT NULL,
+  `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `src_user` text COLLATE utf8mb3_bin,
+  `src_ip` varchar(50) COLLATE utf8mb3_bin DEFAULT NULL,
+  `op_type` char(10) COLLATE utf8mb3_bin DEFAULT NULL,
+  `tenant_id` varchar(128) COLLATE utf8mb3_bin DEFAULT '',
+  `encrypted_data_key` text COLLATE utf8mb3_bin NOT NULL,
+  PRIMARY KEY (`nid`),
+  KEY `idx_gmt_create` (`gmt_create`),
+  KEY `idx_gmt_modified` (`gmt_modified`),
+  KEY `idx_did` (`data_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1968 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `permissions`
+--
+
+DROP TABLE IF EXISTS `permissions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `permissions` (
+  `role` varchar(50) NOT NULL,
+  `resource` varchar(255) NOT NULL,
+  `action` varchar(8) NOT NULL,
+  UNIQUE KEY `uk_role_permission` (`role`,`resource`,`action`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `roles`
+--
+
+DROP TABLE IF EXISTS `roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `roles` (
+  `username` varchar(50) NOT NULL,
+  `role` varchar(50) NOT NULL,
+  UNIQUE KEY `idx_user_role` (`username`,`role`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tenant_capacity`
+--
+
+DROP TABLE IF EXISTS `tenant_capacity`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tenant_capacity` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `tenant_id` varchar(128) COLLATE utf8mb3_bin NOT NULL DEFAULT '' COMMENT 'Tenant ID',
+  `quota` int unsigned NOT NULL DEFAULT '0' COMMENT '0',
+  `usage` int unsigned NOT NULL DEFAULT '0',
+  `max_size` int unsigned NOT NULL DEFAULT '0' COMMENT '0',
+  `max_aggr_count` int unsigned NOT NULL DEFAULT '0',
+  `max_aggr_size` int unsigned NOT NULL DEFAULT '0' COMMENT '0',
+  `max_history_count` int unsigned NOT NULL DEFAULT '0',
+  `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tenant_id` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tenant_info`
+--
+
+DROP TABLE IF EXISTS `tenant_info`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tenant_info` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `kp` varchar(128) COLLATE utf8mb3_bin NOT NULL COMMENT 'kp',
+  `tenant_id` varchar(128) COLLATE utf8mb3_bin DEFAULT '' COMMENT 'tenant_id',
+  `tenant_name` varchar(128) COLLATE utf8mb3_bin DEFAULT '' COMMENT 'tenant_name',
+  `tenant_desc` varchar(256) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'tenant_desc',
+  `create_source` varchar(32) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'create_source',
+  `gmt_create` bigint NOT NULL,
+  `gmt_modified` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tenant_info_kptenantid` (`kp`,`tenant_id`),
+  KEY `idx_tenant_id` (`tenant_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin COMMENT='tenant_info';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+  `username` varchar(50) NOT NULL,
+  `password` varchar(500) NOT NULL,
+  `enabled` tinyint(1) NOT NULL,
+  PRIMARY KEY (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2023-09-08 13:24:36
+```
+
+
+
+2. nacos-cm.yaml
+```aidl
+apiVersion: v1
+data:
+  application.properties: |
+    #*************** Spring Boot Related Configurations ***************#
+    ### Default web context path:
+    server.servlet.contextPath=/nacos
+    ### Include message field
+    server.error.include-message=ALWAYS
+    ### Default web server port:
+    server.port=8848
+    #*************** Network Related Configurations ***************#
+    ### If prefer hostname over ip for Nacos server addresses in cluster.conf:
+    # nacos.inetutils.prefer-hostname-over-ip=false
+    ### Specify local server's IP:
+    # nacos.inetutils.ip-address=
+    #*************** Config Module Related Configurations ***************#
+    ### Deprecated configuration property, it is recommended to use `spring.sql.init.platform` replaced.
+    spring.datasource.platform=mysql
+    # nacos.plugin.datasource.log.enabled=true
+    #spring.sql.init.platform=mysql
+    ### Count of DB:
+    db.num=1
+    ### Connect URL of DB:
+    db.url.0=jdbc:mysql://mysql.default.svc.cluster.local:3306/nacos?characterEncoding=utf8&connectTimeout=30000&socketTimeout=30000&autoReconnect=true&useUnicode=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    db.user.0=root
+    db.password.0=123456
+    ### Connection pool configuration: hikariCP
+    db.pool.config.connectionTimeout=30000
+    db.pool.config.validationTimeout=10000
+    db.pool.config.maximumPoolSize=20
+    db.pool.config.minimumIdle=2
+    #*************** Naming Module Related Configurations ***************#
+    ### Data dispatch task execution period in milliseconds:
+
+    ### If enable data warmup. If set to false, the server would accept request without local data preparation:
+    # nacos.naming.data.warmup=true
+    ### If enable the instance auto expiration, kind like of health check of instance:
+    # nacos.naming.expireInstance=true
+    ### will be removed and replaced by `nacos.naming.clean` properties
+    nacos.naming.empty-service.auto-clean=true
+    nacos.naming.empty-service.clean.initial-delay-ms=50000
+    nacos.naming.empty-service.clean.period-time-ms=30000
+    ### Add in 2.0.0
+    ### The interval to clean empty service, unit: milliseconds.
+    # nacos.naming.clean.empty-service.interval=60000
+    ### The expired time to clean empty service, unit: milliseconds.
+    # nacos.naming.clean.empty-service.expired-time=60000
+    ### The interval to clean expired metadata, unit: milliseconds.
+    # nacos.naming.clean.expired-metadata.interval=5000
+    ### The expired time to clean metadata, unit: milliseconds.
+    # nacos.naming.clean.expired-metadata.expired-time=60000
+    ### The delay time before push task to execute from service changed, unit: milliseconds.
+    # nacos.naming.push.pushTaskDelay=500
+    ### The timeout for push task execute, unit: milliseconds.
+    # nacos.naming.push.pushTaskTimeout=5000
+    ### The delay time for retrying failed push task, unit: milliseconds.
+    # nacos.naming.push.pushTaskRetryDelay=1000
+    ### Since 2.0.3
+    ### The expired time for inactive client, unit: milliseconds.
+    # nacos.naming.client.expired.time=180000
+    #*************** CMDB Module Related Configurations ***************#
+    ### The interval to dump external CMDB in seconds:
+    # nacos.cmdb.dumpTaskInterval=3600
+    ### The interval of polling data change event in seconds:
+    # nacos.cmdb.eventTaskInterval=10
+    ### The interval of loading labels in seconds:
+    # nacos.cmdb.labelTaskInterval=300
+    ### If turn on data loading task:
+    # nacos.cmdb.loadDataAtStart=false
+    #*************** Metrics Related Configurations ***************#
+    ### Metrics for prometheus
+    #management.endpoints.web.exposure.include=*
+    ### Metrics for elastic search
+    management.metrics.export.elastic.enabled=false
+    #management.metrics.export.elastic.host=http://localhost:9200
+    ### Metrics for influx
+    management.metrics.export.influx.enabled=false
+    #management.metrics.export.influx.db=springboot
+    #management.metrics.export.influx.uri=http://localhost:8086
+    #management.metrics.export.influx.auto-create-db=true
+    #management.metrics.export.influx.consistency=one
+    #management.metrics.export.influx.compressed=true
+    #*************** Access Log Related Configurations ***************#
+    ### If turn on the access log:
+    server.tomcat.accesslog.enabled=true
+    ### accesslog automatic cleaning time
+    server.tomcat.accesslog.max-days=30
+    ### The access log pattern:
+    server.tomcat.accesslog.pattern=%h %l %u %t "%r" %s %b %D %{User-Agent}i %{Request-Source}i
+    ### The directory of access log:
+    server.tomcat.basedir=file:.
+    #*************** Access Control Related Configurations ***************#
+    ### If enable spring security, this option is deprecated in 1.2.0:
+    #spring.security.enabled=false
+    ### The ignore urls of auth, is deprecated in 1.2.0:
+    nacos.security.ignore.urls=/,/error,/**/*.css,/**/*.js,/**/*.html,/**/*.map,/**/*.svg,/**/*.png,/**/*.ico,/console-ui/public/**,/v1/auth/**,/v1/console/health/**,/actuator/**,/v1/console/server/**
+    ### The auth system to use, currently only 'nacos' and 'ldap' is supported:
+    nacos.core.auth.system.type=nacos
+    ### If turn on auth system:
+    nacos.core.auth.enabled=false
+    ### Turn on/off caching of auth information. By turning on this switch, the update of auth information would have a 15 seconds delay.
+    nacos.core.auth.caching.enabled=true
+    ### Since 1.4.1, Turn on/off white auth for user-agent: nacos-server, only for upgrade from old version.
+    nacos.core.auth.enable.userAgentAuthWhite=false
+    ### Since 1.4.1, worked when nacos.core.auth.enabled=true and nacos.core.auth.enable.userAgentAuthWhite=false.
+    ### The two properties is the white list for auth and used by identity the request from other server.
+    nacos.core.auth.server.identity.key=serverIdentity
+    nacos.core.auth.server.identity.value=security
+    ### worked when nacos.core.auth.system.type=nacos
+    ### The token expiration in seconds:
+    nacos.core.auth.plugin.nacos.token.expire.seconds=18000
+    ### The default token (Base64 string):
+    nacos.core.auth.plugin.nacos.token.secret.key=SecretKey012345678901234567890123456789012345678901234567890123456789
+    ### worked when nacos.core.auth.system.type=ldap?{0} is Placeholder,replace login username
+    #nacos.core.auth.ldap.url=ldap://localhost:389
+    #nacos.core.auth.ldap.basedc=dc=example,dc=org
+    #nacos.core.auth.ldap.userDn=cn=admin,${nacos.core.auth.ldap.basedc}
+    #nacos.core.auth.ldap.password=admin
+    #nacos.core.auth.ldap.userdn=cn={0},dc=example,dc=org
+    #nacos.core.auth.ldap.filter.prefix=uid
+    #nacos.core.auth.ldap.case.sensitive=true
+    #*************** Istio Related Configurations ***************#
+    ### If turn on the MCP server:
+    nacos.istio.mcp.server.enabled=false
+
+    ###*************** Add from 1.3.0 ***************###
+    #*************** Core Related Configurations ***************#
+    ### set the WorkerID manually
+    # nacos.core.snowflake.worker-id=
+    ### Member-MetaData
+    # nacos.core.member.meta.site=
+    # nacos.core.member.meta.adweight=
+    # nacos.core.member.meta.weight=
+    ### MemberLookup
+    ### Addressing pattern category, If set, the priority is highest
+    # nacos.core.member.lookup.type=[file,address-server]
+    ## Set the cluster list with a configuration file or command-line argument
+    # nacos.member.list=192.168.16.101:8847?raft_port=8807,192.168.16.101?raft_port=8808,192.168.16.101:8849?raft_port=8809
+    ## for AddressServerMemberLookup
+    # Maximum number of retries to query the address server upon initialization
+    # nacos.core.address-server.retry=5
+    ## Server domain name address of [address-server] mode
+    # address.server.domain=jmenv.tbsite.net
+    ## Server port of [address-server] mode
+    # address.server.port=8080
+    ## Request address of [address-server] mode
+    # address.server.url=/nacos/serverlist
+    #*************** JRaft Related Configurations ***************#
+    ### Sets the Raft cluster election timeout, default value is 5 second
+    # nacos.core.protocol.raft.data.election_timeout_ms=5000
+    ### Sets the amount of time the Raft snapshot will execute periodically, default is 30 minute
+    # nacos.core.protocol.raft.data.snapshot_interval_secs=30
+    ### raft internal worker threads
+    # nacos.core.protocol.raft.data.core_thread_num=8
+    ### Number of threads required for raft business request processing
+    # nacos.core.protocol.raft.data.cli_service_thread_num=4
+    ### raft linear read strategy. Safe linear reads are used by default, that is, the Leader tenure is confirmed by heartbeat
+    # nacos.core.protocol.raft.data.read_index_type=ReadOnlySafe
+    ### rpc request timeout, default 5 seconds
+    # nacos.core.protocol.raft.data.rpc_request_timeout_ms=5000
+    #*************** Distro Related Configurations ***************#
+    ### Distro data sync delay time, when sync task delayed, task will be merged for same data key. Default 1 second.
+    # nacos.core.protocol.distro.data.sync.delayMs=1000
+    ### Distro data sync timeout for one sync data, default 3 seconds.
+    # nacos.core.protocol.distro.data.sync.timeoutMs=3000
+    ### Distro data sync retry delay time when sync data failed or timeout, same behavior with delayMs, default 3 seconds.
+    # nacos.core.protocol.distro.data.sync.retryDelayMs=3000
+    ### Distro data verify interval time, verify synced data whether expired for a interval. Default 5 seconds.
+    # nacos.core.protocol.distro.data.verify.intervalMs=5000
+    ### Distro data verify timeout for one verify, default 3 seconds.
+    # nacos.core.protocol.distro.data.verify.timeoutMs=3000
+    ### Distro data load retry delay when load snapshot data failed, default 30 seconds.
+    # nacos.core.protocol.distro.data.load.retryDelayMs=30000
+    ### enable to support prometheus service discovery
+    #nacos.prometheus.metrics.enabled=true
+kind: ConfigMap
+metadata:
+  name: nacos-cm
+
+```
+
+3. nacos.yaml
+```aidl
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    name: nacos
+  name: nacos
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      name: nacos
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        name: nacos
+    spec:
+      containers:
+      - env:
+        - name: MODE
+          value: standalone
+        - name: SPRING_DATASOURCE_PLATFORM
+          value: mysql
+        - name: PREFER_HOST_MODE
+          value: hostname
+        image: jd-mpc-cn-north-1-inner.jcr.service.jdcloud.com/mpcimage/9ntrain:nacos_2.3.0_safe
+        imagePullPolicy: Always
+        name: nacos
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: "1"
+            memory: 2Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /home/nacos/conf/application.properties
+          name: nacos-cm
+          subPath: application.properties
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: application.properties
+            path: application.properties
+          name: nacos-cm
+        name: nacos-cm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: nacos-svc
+  name: nacos-svc
+spec:
+  ports:
+  - name: http
+    nodePort: 30009
+    port: 8848
+    protocol: TCP
+    targetPort: 8848
+  - name: http1
+    nodePort: 31397
+    port: 9848
+    protocol: TCP
+    targetPort: 9848
+  - name: http2
+    nodePort: 30140
+    port: 9555
+    protocol: TCP
+    targetPort: 9555
+  selector:
+    name: nacos
+  sessionAffinity: None
+  type: NodePort
+status:
+  loadBalancer: {}
+```
 
 nacos主要用来配置coordinator启动需要的文件。将在第9小节中介绍具体配置方式。
 
@@ -1378,7 +1953,7 @@ target.token=test
 
 3. 创建coordinator配置configmap
 - COORDINATOR_CONF=coordinator-conf
-- NACOS_DOMAIN
+- NACOS_DOMAIN：请使用本集群上部署的nacos的svc域名
 - NAMESPACE
 
 ```
@@ -1403,11 +1978,35 @@ data:
 - K8S-CONF=k8s-conf
 ```
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: K8S-CONF
 data:
   k8sconfig.yaml: |+
+    apiVersion: v1
+    clusters:
+    - cluster:
+        server: 
+        insecure-skip-tls-verify: true
+      name: kubernetes
+    contexts:
+    - context:
+        cluster: kubernetes
+        user: basic-authentication
+      name: basic-authentication@kubernetes
+    - context:
+        cluster: kubernetes
+        user: cert-authentication
+      name: cert-authentication@kubernetes
+    current-context: cert-authentication@kubernetes
+    kind: Config
+    preferences: {}
+    users:
+    - name: basic-authentication
+      user:
+        username: kube-admin
+        password: 
+    - name: cert-authentication
+      user:
+        client-certificate-data: 
+        client-key-data:
 ```
 
 该项配置是k8s集群的认证信息，用于coordinator起pod时使用。

@@ -399,7 +399,8 @@ java -jar ../gen-0.0.1-SNAPSHOT.jar --partys=$PROXY_TARGET,false
 ```
 该条sql中信息包含ca.crt、server_cert.pem、server_private.pem等信息，在proxy组件的部署配置中仍需用到。
 
-- auth_info证书生成
+- auth_info证书生成（非必须）
+只有防盗版worker需要该步骤
 由京东侧完成该步骤。
 
     - 生成ROOT证书

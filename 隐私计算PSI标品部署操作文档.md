@@ -411,7 +411,7 @@ java -jar ../gen-0.0.1-SNAPSHOT.jar --partys=$PROXY_TARGET,false
   "organizationName": $PROXY_TARGET,
   "localityName": "BeiJing",
   "stateName": "BeiJing",
-  "country": "CN"}'  http://mpc-auth-prodhttp.mpc-9n.svc.lf10.n.jd.local
+  "country": "CN"}'  http://mpc-auth-prodhttp.mpc-9n.svc.lf10.n.jd.local/openapi/initDomain
 
     ```
     - 生成AUTH证书
@@ -422,7 +422,7 @@ java -jar ../gen-0.0.1-SNAPSHOT.jar --partys=$PROXY_TARGET,false
   "organizationName": $PROXY_TARGET,
   "localityName": "BeiJing",
   "stateName": "BeiJing",
-  "country": "CN"}' http://mpc-auth-prodhttp.mpc-9n.svc.lf10.n.jd.local
+  "country": "CN"}' http://mpc-auth-prodhttp.mpc-9n.svc.lf10.n.jd.local/openapi/initDomain
     ```
     - 证书审批
     ```

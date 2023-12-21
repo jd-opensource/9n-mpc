@@ -209,7 +209,7 @@ spec:
     app: redis
   ports:
     - protocol: TCP
-      port: 32163
+      port: 6379
       targetPort: $REDIS_POD_PORT
 ```
 

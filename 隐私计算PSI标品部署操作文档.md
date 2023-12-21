@@ -925,13 +925,35 @@ data:
 
 ```
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: cert
 data:
-  ca.crt: |
-  server_cert.pem: |
-  server_private.pem: |
+  k8sconfig.yaml: |+
+    apiVersion: v1
+    clusters:
+    - cluster:
+        server: 
+        insecure-skip-tls-verify: true
+      name: kubernetes
+    contexts:
+    - context:
+        cluster: kubernetes
+        user: basic-authentication
+      name: basic-authentication@kubernetes
+    - context:
+        cluster: kubernetes
+        user: cert-authentication
+      name: cert-authentication@kubernetes
+    current-context: cert-authentication@kubernetes
+    kind: Config
+    preferences: {}
+    users:
+    - name: basic-authentication
+      user:
+        username: kube-admin
+        password: 
+    - name: cert-authentication
+      user:
+        client-certificate-data: 
+        client-key-data:
 ```
 
 5. 创建proxy deployment

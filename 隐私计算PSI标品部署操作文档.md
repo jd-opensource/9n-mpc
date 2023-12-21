@@ -961,7 +961,7 @@ data:
 - NODENAME
 - PROXY_NODE_IP
 
-部署proxy时通过NODENAME指定部署在固定的节点上，重启proxy时不会改变，与京东侧通信需要给proxy开公网ip端口。
+部署proxy时通过NODENAME指定部署在固定的节点上，重启proxy时不会改变，与京东侧通信需要给proxy开公网ip端口。若起proxy的节点无法开通公网ip和端口，也可采用svc绑定负载均衡器然后给负载均衡器开公网地址+端口的形式。
 
 ```
 apiVersion: apps/v1
@@ -1023,8 +1023,6 @@ spec:
           defaultMode: 420
           name: cert
         name: cert
-
-
 ```
 
 ## 8 nacos

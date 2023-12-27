@@ -37,6 +37,11 @@ import json
 import struct
 from pyarrow.dataset import dataset
 #from workerAuth.authClient import AuthClient
+import tempfile
+from ray.util.queue import Queue
+import pyarrow.ipc as ipc
+import numpy as np
+from threading import Thread
 
 
 def init_logging(app_id, level=logging.INFO, logdir='/mnt/logs', platform_id='9n-mpc', filename='run.log', catch_tf=False, custom_node_id=None):
@@ -452,9 +457,146 @@ def repartition_by_key_value(ds, key, boundaries, descending=False):
 # above are copied from ray_utils.py
 
 
-def repartition_by_hash(dataTable, example_id_name: str, partition_num: int, hashed_mod_column_name: str, hashed_column_name: str) -> List[ray.types.ObjectRef[pa.Table]]:
+@ray.remote
+def bucket_writer_task(queues):
     """
     """
+    logging.info(f"bucket_writer_task process queues size:{len(queues)}")
+
+    def prcess(queue, tmpfile):
+        first_record = queue.get(block=True)
+
+        if first_record is not None:
+            with ipc.new_stream(tmpfile, first_record.schema) as writer:
+                writer.write_batch(first_record)
+                first_record = None
+
+                while True:
+                    recordbatch = queue.get(block=True)
+                    if recordbatch is None:
+                        break
+                    if recordbatch.num_rows == 0:
+                        continue
+                    writer.write_batch(recordbatch)
+
+        tmpfile.close()
+
+    tmpfiles = [tempfile.NamedTemporaryFile(prefix="{}-{}-".format(str(os.getpid()),str(os.getppid())),
+        delete=False) for _ in range(len(queues))]
+    ths = [Thread(target=prcess, args=(queues[i], tmpfiles[i]))
+           for i in range(len(tmpfiles))]
+
+    for th in ths:
+        th.start()
+
+    for th in ths:
+        th.join()
+
+    return [tmpfile.name for tmpfile in tmpfiles]
+
+
+@ray.remote
+def read_bucket(bucket_file_names):
+    """
+    """
+    logging.info(f"read_bucket process bucket_file_names size:"
+                 "{len(bucket_file_names)}")
+
+    def prcess(bucket_file_name, index, deserialized_batchs):
+        with pa.memory_map(bucket_file_name, 'rb') as source:
+            with ipc.open_stream(source) as reader:
+                deserialized_batchs[index] = ray.put(pa.Table.from_batches([b for b in reader]))
+        os.remove(bucket_file_name)
+
+    n = len(bucket_file_names)
+    deserialized_batchs = [None]*n
+    # ths = [Thread(target=prcess, args=(bucket_file_names[i], i,
+    #               deserialized_batchs)) for i in range(n)]
+
+    # for th in ths:
+    #     th.start()
+
+    # for th in ths:
+    #     th.join()
+
+    for i in range(n):
+        prcess(bucket_file_names[i], i, deserialized_batchs)
+
+    return deserialized_batchs
+
+
+@ray.remote
+def concact_buckets(records):
+    """
+    """
+    deserialized_batchs = []
+
+    for record in records:
+        deserialized_batchs += ray.get(record)
+
+    return deserialized_batchs
+
+
+
+def repartition_by_hash_with_io(dataTable, example_id_name: str, partition_num: int, hashed_column_name: str):
+    """
+    """
+    parallel = int(os.environ.get('CPU')) if os.environ.get('CPU') else 1
+
+    if parallel > partition_num:
+        parallel = partition_num
+    batch_size = (partition_num + parallel - 1) // parallel
+
+    # dataTable = add_hash_column(
+    #     dataTable, hashed_column_name=hashed_column_name, to_hash_column_name=example_id_name)
+
+    queues = [Queue(maxsize=1) for _ in range(partition_num)]
+
+    bucket_writers = [bucket_writer_task.remote(
+        queues[i:i+batch_size]) for i in range(0, partition_num, batch_size)]
+
+    batch_size = 1000_000
+    for record in dataTable.to_batches():
+        for offset in range(0, record.num_rows, batch_size):
+            batch = record.slice(offset, batch_size)
+
+            batch = add_hash_column(
+                pa.Table.from_batches([batch]), hashed_column_name=hashed_column_name, to_hash_column_name=example_id_name)
+            batch = batch.to_batches()[0]
+
+            hash_mod_n = np.array([int(bytes.hex(value.as_py()), 16) %
+                                  partition_num for value in batch.column(hashed_column_name)])
+
+            sp_batchs = [batch.filter(pa.array(hash_mod_n == i))
+                         for i in range(partition_num)]
+
+            for i, que in enumerate(queues):
+                que.put(sp_batchs[i])
+
+    for que in queues:
+        que.put(None)
+
+    dataTable = None
+
+    bucket_writers = [ray.get(bucket_writer) for bucket_writer in bucket_writers]
+    for que in queues:
+        que.shutdown(force=True)
+    queues = None
+
+    records = []
+    
+    for bucket_writer in bucket_writers:
+        records.append(read_bucket.remote(bucket_writer))
+
+    return ray.get(concact_buckets.remote(records))
+
+
+def repartition_by_hash(dataTable, example_id_name: str, partition_num: int, hashed_mod_column_name: str, hashed_column_name: str, use_io: bool = True) -> List[ray.types.ObjectRef[pa.Table]]:
+    """
+    """
+    if use_io:
+        return repartition_by_hash_with_io(dataTable, example_id_name, partition_num, hashed_column_name)
+    
     dataTable = add_hash_column(dataTable, hashed_column_name=hashed_column_name, to_hash_column_name=example_id_name,
                                 hashed_mod_column_name=hashed_mod_column_name, hashed_mod_n=partition_num)
     logging.info(f"repartition_by_hash add_hash_column ended {example_id_name} {partition_num}")
@@ -468,7 +610,7 @@ def repartition_by_hash(dataTable, example_id_name: str, partition_num: int, has
 
 
 def repartition_for_existed_data(data_protocol: str, data_format: str, file_path: str, with_head: bool,
-                                 example_id_name: str, data_block_count: int, csv_delimiter: str = ","):
+                                 example_id_name: str, data_block_count: int, csv_delimiter: str = ",", use_io: bool = True):
     """
     """
     logging.info(f"enter repartition_for_existed_data {data_format} {file_path}")
@@ -486,12 +628,13 @@ def repartition_for_existed_data(data_protocol: str, data_format: str, file_path
     real_example_id_name = get_actual_column_name(
         dataTable, example_id_name, 0)
     
-    dataTable = PsiPirActor._convert_string_to_large_string(dataTable)
+    if not use_io:
+        dataTable = PsiPirActor._convert_string_to_large_string(dataTable)
 
     data_blocks = repartition_by_hash(dataTable, example_id_name=real_example_id_name,
                                       partition_num=data_block_count,
                                       hashed_mod_column_name=STATIC_HASHED_MOD_VALUE_COLUMN_NAMES,
-                                      hashed_column_name=STATIC_HASHED_VALUE_COLUMN_NAMES)
+                                      hashed_column_name=STATIC_HASHED_VALUE_COLUMN_NAMES, use_io=use_io)
 
     logging.info(f"repartition_for_existed_data {data_blocks} {data_blocks[0]}")
     return data_blocks
@@ -1000,9 +1143,14 @@ class PsiPirActor:
             data = self._convert_string_to_large_string(data)
         else:
             data = block_data
+            added_columns = 0
+            if STATIC_HASHED_VALUE_COLUMN_NAMES in data.column_names:
+                added_columns += 1
+            if STATIC_HASHED_MOD_VALUE_COLUMN_NAMES in data.column_names:
+                added_columns += 1
             # the data has add mod and hash_values at head
             real_example_name = get_actual_column_name(
-                data, self.example_id_name, 2)
+                data, self.example_id_name, added_columns)
 
         if data.num_rows > 0 and data.num_columns > 0:
             # add hash column
@@ -1396,5 +1544,5 @@ if __name__ == "__main__":
         set_node_status(args.status_server, actual_app_id,
                         0, 0, result=json.dumps(results))
     except Exception as e:
-        logging.error(f"error: {e}")
+        logging.error(f"error: {e}", exc_info=True)
         set_node_status(args.status_server, actual_app_id, 0, 500)

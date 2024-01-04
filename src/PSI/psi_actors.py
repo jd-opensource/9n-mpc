@@ -15,12 +15,6 @@
 # limitations under the License.
 
 from ray.data import Dataset
-from ray.data.block import (
-    _validate_key_fn,
-    KeyFn)
-from ray.data._internal.sort import SimpleSortOp
-from ray.data._internal.block_list import BlockList
-from ray.data._internal.plan import AllToAllStage
 import os
 import ray
 import argparse
@@ -37,11 +31,8 @@ import json
 import struct
 from pyarrow.dataset import dataset
 #from workerAuth.authClient import AuthClient
-import tempfile
-from ray.util.queue import Queue
-import pyarrow.ipc as ipc
 import numpy as np
-from threading import Thread
+from ray.data.context import DatasetContext
 
 
 def init_logging(app_id, level=logging.INFO, logdir='/mnt/logs', platform_id='9n-mpc', filename='run.log', catch_tf=False, custom_node_id=None):
@@ -158,8 +149,7 @@ def read_data_from_filesystem(file_system, file_path: str, with_head: bool, usin
 
         if using_ray:
             table_dataset = ray.data.read_csv(
-                file_path, filesystem=file_system, parse_options=parse_options)
-            table_dataset._lazy = False
+                file_path,  filesystem=file_system, parse_options=parse_options)
         else:
             table_dataset = csv.read_csv(file_system.open_input_stream(
                 file_path), parse_options=parse_options)
@@ -391,254 +381,85 @@ def add_hash_column(df: pa.Table, hashed_column_name: str, to_hash_column_name: 
 
     return df.add_column(0, hashed_column_name, pa.array(hashed_id, type=pa.binary()))
 
-
-# following are copied from ray_utils.py
-
-
-def sort_impl_with_boundaries(
-    blocks: BlockList, clear_input_blocks: bool, key, boundaries: list = None, descending: bool = False
-) -> Tuple[BlockList, dict]:
-    stage_info = {}
-    blocks_list = blocks.get_blocks()
-    if len(blocks_list) == 0:
-        return BlockList([], []), stage_info
-
-    if isinstance(key, str):
-        key = [(key, "descending" if descending else "ascending")]
-
-    if isinstance(key, list):
-        descending = key[0][1] == "descending"
-
-    # Use same number of output partitions.
-    num_reducers = len(boundaries) + 1
-    # TODO(swang): sample_boundaries could be fused with a previous stage.
-    if descending:
-        boundaries.reverse()
-    sort_op_cls = SimpleSortOp
-    sort_op = sort_op_cls(
-        map_args=[boundaries, key, descending], reduce_args=[key, descending]
-    )
-    return sort_op.execute(
-        blocks,
-        num_reducers,
-        clear_input_blocks,
-    )
-
-
-class SortWithBoundariesStage(AllToAllStage):
-    """Implementation of `Dataset.sort()`."""
-
-    def __init__(self, ds: "Dataset", key: Optional[KeyFn],  boundaries: list, descending: bool):
-        def do_sort_with_boundaries(block_list, clear_input_blocks: bool, *_):
-            # Handle empty dataset.
-            if block_list.initial_num_blocks() == 0:
-                return block_list, {}
-            if clear_input_blocks:
-                blocks = block_list.copy()
-                block_list.clear()
-            else:
-                blocks = block_list
-            if isinstance(key, list):
-                if not key:
-                    raise ValueError("`key` must be a list of non-zero length")
-                for subkey in key:
-                    _validate_key_fn(ds, subkey)
-            else:
-                _validate_key_fn(ds, key)
-            return sort_impl_with_boundaries(blocks, clear_input_blocks, key, boundaries, descending)
-
-        super().__init__("sort_with_boundaries", None, do_sort_with_boundaries)
-
-
-def repartition_by_key_value(ds, key, boundaries, descending=False):
-    plan = ds._plan.with_stage(
-        SortWithBoundariesStage(ds, key, boundaries, descending))
-    return Dataset(plan, ds._epoch, ds._lazy)
-# above are copied from ray_utils.py
-
-
-@ray.remote
-def bucket_writer_task(queues):
-    """
-    """
-    logging.info(f"bucket_writer_task process queues size:{len(queues)}")
-
-    def prcess(queue, tmpfile):
-        first_record = queue.get(block=True)
-
-        if first_record is not None:
-            with ipc.new_stream(tmpfile, first_record.schema) as writer:
-                writer.write_batch(first_record)
-                first_record = None
-
-                while True:
-                    recordbatch = queue.get(block=True)
-                    if recordbatch is None:
-                        break
-                    if recordbatch.num_rows == 0:
-                        continue
-                    writer.write_batch(recordbatch)
-
-        tmpfile.close()
-
-    tmpfiles = [tempfile.NamedTemporaryFile(prefix="{}-{}-".format(str(os.getpid()),str(os.getppid())),
-        delete=False) for _ in range(len(queues))]
-    ths = [Thread(target=prcess, args=(queues[i], tmpfiles[i]))
-           for i in range(len(tmpfiles))]
-
-    for th in ths:
-        th.start()
-
-    for th in ths:
-        th.join()
-
-    return [tmpfile.name for tmpfile in tmpfiles]
-
-
-@ray.remote
-def read_bucket(bucket_file_names):
-    """
-    """
-    logging.info(f"read_bucket process bucket_file_names size:"
-                 "{len(bucket_file_names)}")
-
-    def prcess(bucket_file_name, index, deserialized_batchs):
-        with pa.memory_map(bucket_file_name, 'rb') as source:
-            with ipc.open_stream(source) as reader:
-                deserialized_batchs[index] = ray.put(pa.Table.from_batches([b for b in reader]))
-        os.remove(bucket_file_name)
-
-    n = len(bucket_file_names)
-    deserialized_batchs = [None]*n
-    # ths = [Thread(target=prcess, args=(bucket_file_names[i], i,
-    #               deserialized_batchs)) for i in range(n)]
-
-    # for th in ths:
-    #     th.start()
-
-    # for th in ths:
-    #     th.join()
-
-    for i in range(n):
-        prcess(bucket_file_names[i], i, deserialized_batchs)
-
-    return deserialized_batchs
-
-
-@ray.remote
-def concact_buckets(records):
-    """
-    """
-    deserialized_batchs = []
-
-    for record in records:
-        deserialized_batchs += ray.get(record)
-
-    return deserialized_batchs
-
-
-
-def repartition_by_hash_with_io(dataTable, example_id_name: str, partition_num: int, hashed_column_name: str):
-    """
-    """
-    parallel = int(os.environ.get('CPU')) if os.environ.get('CPU') else 1
-
-    if parallel > partition_num:
-        parallel = partition_num
-    batch_size = (partition_num + parallel - 1) // parallel
-
-    # dataTable = add_hash_column(
-    #     dataTable, hashed_column_name=hashed_column_name, to_hash_column_name=example_id_name)
-
-    queues = [Queue(maxsize=1) for _ in range(partition_num)]
-
-    bucket_writers = [bucket_writer_task.remote(
-        queues[i:i+batch_size]) for i in range(0, partition_num, batch_size)]
-
-    batch_size = 1000_000
-    for record in dataTable.to_batches():
-        for offset in range(0, record.num_rows, batch_size):
-            batch = record.slice(offset, batch_size)
-
-            batch = add_hash_column(
-                pa.Table.from_batches([batch]), hashed_column_name=hashed_column_name, to_hash_column_name=example_id_name)
-            batch = batch.to_batches()[0]
-
-            hash_mod_n = np.array([int(bytes.hex(value.as_py()), 16) %
-                                  partition_num for value in batch.column(hashed_column_name)])
-
-            sp_batchs = [batch.filter(pa.array(hash_mod_n == i))
-                         for i in range(partition_num)]
-
-            for i, que in enumerate(queues):
-                que.put(sp_batchs[i])
-
-    for que in queues:
-        que.put(None)
-
-    dataTable = None
-
-    bucket_writers = [ray.get(bucket_writer) for bucket_writer in bucket_writers]
-    for que in queues:
-        que.shutdown(force=True)
-    queues = None
-
-    records = []
-    
-    for bucket_writer in bucket_writers:
-        records.append(read_bucket.remote(bucket_writer))
-
-    return ray.get(concact_buckets.remote(records))
-
-
-def repartition_by_hash(dataTable, example_id_name: str, partition_num: int, hashed_mod_column_name: str, hashed_column_name: str, use_io: bool = True) -> List[ray.types.ObjectRef[pa.Table]]:
-    """
-    """
-    if use_io:
-        return repartition_by_hash_with_io(dataTable, example_id_name, partition_num, hashed_column_name)
-    
-    dataTable = add_hash_column(dataTable, hashed_column_name=hashed_column_name, to_hash_column_name=example_id_name,
-                                hashed_mod_column_name=hashed_mod_column_name, hashed_mod_n=partition_num)
-    logging.info(f"repartition_by_hash add_hash_column ended {example_id_name} {partition_num}")
-
-    ds = ray.data.from_arrow(dataTable)
-    ds = repartition_by_key_value(ds, key=hashed_mod_column_name, boundaries=list(
-        range(1, partition_num)), descending=False)
-    ds._lazy = False
-    logging.info(f"repartition_by_hash repartition_by_key_value ended {example_id_name} {partition_num}")
-    return ds.to_arrow_refs()
-
-
 def repartition_for_existed_data(data_protocol: str, data_format: str, file_path: str, with_head: bool,
-                                 example_id_name: str, data_block_count: int, csv_delimiter: str = ",", use_io: bool = True):
+                                    example_id_name: str, data_block_count: int, csv_delimiter: str = ",", parallel: int = 2):
     """
     """
     logging.info(f"enter repartition_for_existed_data {data_format} {file_path}")
     if data_protocol == 'hdfs':
-        dataTable = read_data_from_hdfs(
-            data_format, file_path, with_head, False, csv_delimiter=csv_delimiter)
+        dataset = read_data_from_hdfs(
+            data_format, file_path, with_head, True, csv_delimiter=csv_delimiter)
     elif data_protocol == 'nfs':
-        dataTable = read_data_from_file(
-            data_format, file_path, with_head, False, csv_delimiter=csv_delimiter)
+        dataset = read_data_from_file(
+            data_format, file_path, with_head, True, csv_delimiter=csv_delimiter)
     else:
         raise ValueError("can not support repartition for single file")
 
     logging.info(f"repartition_for_existed_data data read all {data_format} {file_path}")
 
     real_example_id_name = get_actual_column_name(
-        dataTable, example_id_name, 0)
+        dataset, example_id_name, 0)
     
-    if not use_io:
-        dataTable = PsiPirActor._convert_string_to_large_string(dataTable)
+    @ray.remote
+    class FileWriter:
+        def __init__(self, names, enmpty_batch) -> None:
+            self.names = names
+            for name in self.names:
+                write_data_to_file(enmpty_batch, name, append=True,
+                               with_head=with_head, csv_delimiter=csv_delimiter)
 
-    data_blocks = repartition_by_hash(dataTable, example_id_name=real_example_id_name,
-                                      partition_num=data_block_count,
-                                      hashed_mod_column_name=STATIC_HASHED_MOD_VALUE_COLUMN_NAMES,
-                                      hashed_column_name=STATIC_HASHED_VALUE_COLUMN_NAMES, use_io=use_io)
+        def write(self,batch):
+            write_data_to_file(batch[0], self.names[batch[1]], append=True,
+                               with_head=False, csv_delimiter=csv_delimiter)
 
-    logging.info(f"repartition_for_existed_data {data_blocks} {data_blocks[0]}")
-    return data_blocks
+    bucket_files = [f"/tmp/bucket-{i}" for i in range(data_block_count)]
+    enmpty_batch = pa.RecordBatch.from_arrays(
+                    [pa.array([], type=typ) for typ in dataset.schema().types],
+                    schema=dataset.schema().base_schema
+                    )
+    
+    bucket_files_split = np.array_split(bucket_files, parallel)
+    bucket_writers = [FileWriter.remote(bucket_files_split[i], enmpty_batch) for i in range(parallel)]
+    boundaries = np.cumsum([len(sub_arr) for sub_arr in bucket_files_split])
+    class hash_split:
+        def __init__(self):
+            pass
 
+        def __call__(self,batch):
+            batch = add_hash_column(
+                batch, hashed_column_name=STATIC_HASHED_VALUE_COLUMN_NAMES, to_hash_column_name=real_example_id_name)
+
+            hash_mod_n = np.array([int(bytes.hex(value.as_py()), 16) %
+                                data_block_count for value in batch.column(STATIC_HASHED_VALUE_COLUMN_NAMES)])
+            batch = batch.drop([STATIC_HASHED_VALUE_COLUMN_NAMES])
+            sp_batchs = [batch.filter(pa.array(hash_mod_n == i))
+                        for i in range(data_block_count)]
+
+            for i, sp_batch in enumerate(sp_batchs):
+                sub_array_index = np.where(boundaries > i)[0][0]
+                new_index = i - (0 if sub_array_index == 0 else boundaries[sub_array_index - 1])
+                ray.get(bucket_writers[sub_array_index].write.remote((sp_batch, new_index)))
+
+            return pa.table({})
+
+    logging.info("parallel require:{} Available Source:{}".format(parallel, ray.available_resources()))
+    nouse = dataset.map_batches(
+        hash_split,
+        batch_size=1000_000,
+        batch_format="pyarrow",
+        concurrency=(1,parallel),
+    )
+
+    dataset = None
+    nouse.take()
+    nouse = None
+
+    for bucket_writer in bucket_writers:
+        ray.kill(bucket_writer, no_restart=True)
+
+    logging.info(f"repartition_for_existed_data {bucket_files} {bucket_files[0]}")
+
+    return bucket_files
 
 def has_column_by_name(data, column_name: str):
     """
@@ -981,7 +802,7 @@ class PsiPirActor:
 
     def __init__(self, actor_index: int, dispatch_actor: BlockDispatchActor, example_id_name: Union[str, int],
                  with_head: bool, join_type: JoinType, role: RoleType, data_type: str, app_id: str,
-                 local_address: int, proxy_address: str, local_domain: str, remote_domain: str, redis_addr: str = "", redis_pwd: str = "") -> None:
+                 local_address: int, proxy_address: str, local_domain: str, remote_domain: str, redis_addr: str = "", redis_pwd: str = "", engine:str = "ecdh") -> None:
         """
         """
         #
@@ -1012,6 +833,8 @@ class PsiPirActor:
         self.redis_addr = redis_addr
         #
         self.redis_pwd = redis_pwd
+
+        self.engine = engine
         init_logging(app_id=self.app_id,
                      custom_node_id=f"worker-{actor_index}")
 
@@ -1022,10 +845,6 @@ class PsiPirActor:
         self._sync_block_status(block_id, BlockStatus.PROCSSING, None, None)
         recTableData, real_example_id_name = self._read_block_data(
             data_protocol, data_format, block_data, csv_delimiter)
-        # if recTableData.num_rows <= 0 or recTableData.num_columns <= 0:
-        #     self._sync_block_status(
-        #         block_id, BlockStatus.PROCESSED, (0, 0, 0), (0, 0, 0))
-        #     return (self.actor_index, block_id, None)
 
         # generate empty result
         recBatchOutSchema = recTableData.schema
@@ -1049,7 +868,6 @@ class PsiPirActor:
             recBatchIn = emptyRecBatchOut
         else:
             recBatchIn = recTableDataBatches[0]
-        # recBatchIn = recTableData.to_batches()[0]
         logging.info(f"****do_action begin actual do block_id={block_id} actor_index={self.actor_index}"
                      f" join_type={self.join_type} original_data_status={original_data_status} rows={recBatchIn.num_rows}")
         if self.join_type == JoinType.PSI:
@@ -1087,21 +905,39 @@ class PsiPirActor:
     def _do_psi(self, block_id: int, block_data: pa.RecordBatch) -> pa.RecordBatch:
         """
         """
-        from interconnection_psi.api import psi_receiver, psi_sender
-        local_address = self.local_address
-        task_id = '{}_{}'.format(self.app_id, block_id)
-        if self.role == RoleType.SENDER:
-            out_table = psi_sender(psi_in=block_data, task_id=task_id,
-                                   local_address=local_address, remote_address=self.proxy_address,
-                                   self_domain=self.local_domain, target_domain=self.remote_domain,
-                                   redis_address=self.redis_addr, redis_password=self.redis_pwd,
-                                   send_back=True)
+        if self.engine == "ecdh":
+            from interconnection_psi.api import psi_receiver, psi_sender
+            local_address = self.local_address
+            task_id = '{}_{}'.format(self.app_id, block_id)
+            if self.role == RoleType.SENDER:
+                out_table = psi_sender(psi_in=block_data, task_id=task_id,
+                                    local_address=local_address, remote_address=self.proxy_address,
+                                    self_domain=self.local_domain, target_domain=self.remote_domain,
+                                    redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                    send_back=True)
+            else:
+                out_table = psi_receiver(psi_in=block_data, task_id=task_id,
+                                        local_address=local_address, remote_address=self.proxy_address,
+                                        self_domain=self.local_domain, target_domain=self.remote_domain,
+                                        redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                        send_back=True)
         else:
-            out_table = psi_receiver(psi_in=block_data, task_id=task_id,
-                                     local_address=local_address, remote_address=self.proxy_address,
-                                     self_domain=self.local_domain, target_domain=self.remote_domain,
-                                     redis_address=self.redis_addr, redis_password=self.redis_pwd,
-                                     send_back=True)
+            import pyraypsi
+            local_address = self.local_address
+            task_id = '{}_{}'.format(self.app_id, block_id)
+            if self.role == RoleType.SENDER:
+                out_table = pyraypsi.psi_sender(psi_in=block_data, task_id=task_id,
+                                    local_address=local_address, remote_address=self.proxy_address,
+                                    self_domain=self.local_domain, target_domain=self.remote_domain,
+                                    redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                    send_back=True, mult_type=1, malicious=True)
+            else:
+                out_table = pyraypsi.psi_receiver(psi_in=block_data, task_id=task_id,
+                                    local_address=local_address, remote_address=self.proxy_address,
+                                    self_domain=self.local_domain, target_domain=self.remote_domain,
+                                    redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                    send_back=True, mult_type=1, malicious=True)
+
         return out_table
 
     def _do_pir(self, block_id: int, block_data: pa.RecordBatch) -> pa.RecordBatch:
@@ -1297,7 +1133,7 @@ def add_schema_to_all_empty_blocks(blocks):
     return blocks
 
 def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, local_ip: str, local_start_port, remote_proxy_address, bucket_num,
-            role_type, local_domain, remote_domain, redis_addr, redis_pwd, output_dir, max_actors=2, csv_delimiter=",", avg_actor_cpus=1.0):
+            role_type, local_domain, remote_domain, redis_addr, redis_pwd, output_dir, max_actors=2, csv_delimiter=",", avg_actor_cpus=1.0, engine="ecdh"):
     dispatch_actor = BlockDispatchActor.remote(app_id=app_id, data_dir_or_path=data_path, with_head=with_head,
                                                data_block_count_if_file=bucket_num, example_id_name=example_id_name)
     # must wait data initialize complete
@@ -1312,8 +1148,8 @@ def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, loca
     # if need partition file first
     if data_type == fs.FileType.File:
         data_blocks = repartition_for_existed_data(
-            data_protocol, data_format, data_path, with_head, example_id_name, bucket_num, csv_delimiter)
-        data_blocks = add_schema_to_all_empty_blocks(data_blocks)
+            data_protocol, data_format, data_path, with_head, example_id_name, bucket_num, csv_delimiter, max_actors)
+        # data_blocks = add_schema_to_all_empty_blocks(data_blocks)
 
         ray.get(dispatch_actor.update_blocks.remote(data_blocks))
 
@@ -1328,7 +1164,7 @@ def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, loca
                                  proxy_address=remote_proxy_address if isinstance(
                                      remote_proxy_address, str) else f"0.0.0.0:{remote_proxy_address+i}",
                                  local_domain=local_domain, remote_domain=remote_domain,
-                                 redis_addr=redis_addr, redis_pwd=redis_pwd
+                                 redis_addr=redis_addr, redis_pwd=redis_pwd, engine=engine,
                                  ) for i in range(max_actors)]
     data_output_refs = [None] * data_block_num
     result_refs = [None]*max_actors
@@ -1419,6 +1255,9 @@ def create_argment_parser():
         "--csv-header", help="选择输入的csv文件是否包含header行, 默认为false", type=bool, default=True)
     parser.add_argument("--csv-delimiter", help="CSV文件分隔符",
                         type=str, default=",")
+    parser.add_argument("--engine", help="求交引擎",
+                        type=str, default="ecdh", choices=["ecdh", "rr22"])
+
 
     parser.add_argument("--supplier", help="选择输出的格式")
     parser.add_argument(
@@ -1534,11 +1373,14 @@ if __name__ == "__main__":
         #            actual_app_id, args.auth_server)
 
         # actual doing
+        ray.init()
+        ray.data.DataContext.get_current().execution_options.verbose_progress = True
+        logging.info("Total Source:{}".format(ray.cluster_resources()))
         results = run_app(app_id=actual_app_id, join_type=join_type, data_path=args.input, example_id_name=actual_example_id_name,
                           with_head=args.csv_header, local_ip=actual_local_ip, local_start_port=args.proxy_listen, remote_proxy_address=remote_addr,
                           bucket_num=actual_buckets, role_type=role_type, local_domain=local_domain, remote_domain=remote_domain,
                           redis_addr=args.redis_server, redis_pwd=args.redis_password, output_dir=args.output, max_actors=n_parallels,
-                          csv_delimiter=args.csv_delimiter, avg_actor_cpus=avg_parallel_cpus)
+                          csv_delimiter=args.csv_delimiter, avg_actor_cpus=avg_parallel_cpus, engine=args.engine)
 
         logging.info(f"all jobs done results={results}")
         set_node_status(args.status_server, actual_app_id,

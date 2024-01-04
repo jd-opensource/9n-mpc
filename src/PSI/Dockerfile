@@ -35,7 +35,7 @@ RUN set -ex && \
 
 RUN set -ex && \
     pip3 install maturin && \
-    pip3 install ray==2.3.1 && \
+    pip3 install ray && \
     pip3 install pyarrow && \
     pip3 install grpcio-tools && \
     pip3 install pyOpenSSL && \

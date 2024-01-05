@@ -70,4 +70,6 @@ WORKDIR /App/
 
 RUN chmod 777 ./start.sh
 
+ENV RAY_DEDUP_LOGS=0
+
 ENTRYPOINT [ "/App/start.sh" ]

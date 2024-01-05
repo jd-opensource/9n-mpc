@@ -949,6 +949,7 @@ class PsiPirActor:
         """
         """
         if isinstance(block_data, str):
+            data_protocol = infer_protocol(block_data)
             # read block data
             if data_protocol == 'hdfs':
                 data = read_data_from_hdfs(
@@ -963,6 +964,7 @@ class PsiPirActor:
         elif isinstance(block_data, list):
             if len(block_data) > 0:
                 for i, sub_block_data in enumerate(block_data):
+                    data_protocol = infer_protocol(sub_block_data)
                     if data_protocol == 'hdfs':
                         sub_data = read_data_from_hdfs(
                             data_format, sub_block_data, self.with_head, False, csv_delimiter)

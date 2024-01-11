@@ -2,7 +2,7 @@ package com.jd.mpc.domain.task;
 
 /**
  * @Description: 认证信息状态
- * @Author: feiguodong
+ * 
  * @Date: 2022/10/9
  */
 public enum AuthStatusEnum {

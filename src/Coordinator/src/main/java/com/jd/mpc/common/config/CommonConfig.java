@@ -19,7 +19,7 @@ import javax.annotation.Resource;
 
 /**
  * @Description: 通用配置
- * @Author: feiguodong
+ * 
  * @Date: 2022/10/9
  */
 @Slf4j

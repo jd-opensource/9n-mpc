@@ -2,7 +2,7 @@ package com.jd.mpc.domain.task;
 
 /**
  * @Description: 证书类型
- * @Author: feiguodong
+ * 
  * @Date: 2022/9/18
  */
 public enum CertTypeEnum {

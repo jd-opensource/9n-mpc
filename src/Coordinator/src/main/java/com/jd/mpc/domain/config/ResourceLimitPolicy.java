@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * @Description: 资源限制策略
- * @Author: feiguodong
+ * 
  * @Date: 2022/4/6
  */
 @Data

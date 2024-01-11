@@ -37,7 +37,7 @@ import static com.jd.mpc.cert.KeyGenerator.getPrivateKey;
 import static com.jd.mpc.cert.KeyGenerator.getPublicKey;
 
 /**
- * @author yezhenyue1
+ * 
  * @date 2022-03-31 17:18
  */
 @Slf4j

@@ -2,7 +2,7 @@ package com.jd.mpc.common.constant;
 
 /**
  * @Description: 部署文件路径常量
- * @Author: feiguodong
+ * 
  * @Date: 2022/2/10
  */
 public interface DeploymentPathConstant {

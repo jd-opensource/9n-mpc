@@ -2,7 +2,7 @@ package com.jd.mpc.common.enums;
 
 /**
  * @Description: 存储类型
- * @Author: feiguodong
+ * 
  * @Date: 2022/8/10
  */
 public enum StoreTypeEnum {

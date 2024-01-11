@@ -3,7 +3,7 @@ package com.jd.mpc.common.enums;
 import lombok.Getter;
 
 /**
- * @author yezhenyue1
+ * 
  * @date 2022-04-02 11:53
  */
 @Getter

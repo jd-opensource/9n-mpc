@@ -6,7 +6,7 @@ import java.util.Map;
 
 /**
  * @Description: 任务信息
- * @Author: feiguodong
+ * 
  * @Date: 2022/9/19
  */
 @Data

@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * @Description: etl header param
- * @Author: feiguodong
+ * 
  * @Date: 2022/9/15
  */
 @Data

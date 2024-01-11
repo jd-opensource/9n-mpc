@@ -13,7 +13,7 @@ import java.util.Date;
 /**
  * @Description: cert pub/pri
  * domain 和 type 作为联合唯一索引
- * @Author: feiguodong
+ * 
  * @Date: 2022/9/18
  */
 @Data

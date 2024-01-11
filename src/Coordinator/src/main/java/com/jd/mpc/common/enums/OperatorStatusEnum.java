@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 /**
  * @Description: 算子状态
- * @Author: feiguodong
+ * 
  * @Date: 2022/4/1
  */
 @JsonFormat(shape = JsonFormat.Shape.OBJECT)

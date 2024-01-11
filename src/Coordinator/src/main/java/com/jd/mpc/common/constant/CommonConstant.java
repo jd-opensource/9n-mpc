@@ -2,7 +2,7 @@ package com.jd.mpc.common.constant;
 
 /**
  * @Description: 常量
- * @Author: feiguodong
+ * 
  * @Date: 2022/3/22
  */
 public interface CommonConstant {

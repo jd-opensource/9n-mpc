@@ -10,7 +10,7 @@ import javax.validation.constraints.Size;
 import java.time.LocalDateTime;
 
 /**
- * @author yezhenyue1
+ *
  * @date 2022-04-01 18:20
  * 任务存根，包括任务信息以及发起方和执行方签名
  */

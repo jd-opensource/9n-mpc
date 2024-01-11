@@ -9,7 +9,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * @Description: 线程池配置
- * @Author: feiguodong
+ * 
  * @Date: 2022/2/21
  */
 @Configuration

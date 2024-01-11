@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package app;
+
+// option go_package = "coding.jd.com/mpc/jasmine/models/pb";
+option java_generic_services = true;
+option java_multiple_files = true;
+
+enum Operator {
+  NOP = 0;
+  NewInt = 1;
+  NewBinary = 2;
+  NewIntArray = 3;
+  NewBinaryArray = 4;
+  NewPackedBinary = 5;
+  NewIntMatrix = 6;
+  NewFloat = 7;
+  Destroy = 9;
+
+  LoadTxt = 10;
+  LoadMySQL = 11;
+  LoadCsv = 12;
+  LoadStdinCsv = 13;
+  LoadStdinOrc = 14;
+  LoadOrc = 15;
+
+  Share = 20;
+  Move = 29;
+  Reveal = 30;
+
+  StoreTxt = 40;
+  StoreMySQL = 41;
+  StoreCsv = 42;
+  StoreStdinCsv = 43;
+  StoreStdinOrc = 44;
+  StoreOrc = 45;
+
+  ExportInt = 50;
+  ExportIntArray = 51;
+  ExportIntMatrix = 52;
+  ExportSharedInt = 53;
+  ExportSharedIntArray = 54;
+
+  FilterCsv = 60;
+
+  NewRandomInt = 70;
+  NewRandomIntMatrix = 76;
+
+  NewSharedInt = 80;
+  NewSharedIntArray = 83;
+
+  ConvertToInt = 90;
+  ConvertToIntArray = 91;
+
+  And = 100;
+  Or = 101;
+  Add = 102;
+  Sub = 103;
+  Mul = 104;
+  DotProduct = 105;
+  ImmSub = 106;
+  Not = 107;
+
+  MulXT = 110;
+  MulYT = 111;
+  MulXYT = 112;
+
+  TestEQ = 120;
+  TestNE = 121;
+  TestGT = 122;
+  TestGE = 123;
+  TestLT = 124;
+  TestLE = 125;
+}
+
+message IntMatrix {
+  int64 Row = 1;
+  int64 Col = 2;
+  repeated int64 Values = 3;
+}
+
+message Instruction {
+  string Src1 = 1;
+  string Src2 = 2;
+  Operator Op = 3;
+  string Des = 4;
+  int64 Imm = 5;
+  repeated int64 IntArr = 6;
+  IntMatrix Mat = 7;
+  double Float = 8;
+}
+
+message Code { repeated Instruction Ins = 1; }

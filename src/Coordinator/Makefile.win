@@ -1,0 +1,25 @@
+# This script is used to build an image on the WINDOWS.
+# You need to use 'git bash' to run it.
+# start cmd: sh Makefile.win
+
+# variables
+jarName=mpc-coordinator-1.0-SNAPSHOT.jar
+#imageName=test.registry.net/9ntrain:coordinator_highly_available
+#imageName=jd-mpc-cn-north-1-inner.jcr.service.jdcloud.com/mpcimage/9ntrain:coordinator_highly_available
+imageName=yd-model-learning-cn-north-1.jcr.service.jdcloud.com/yd-model-store:coordinator_highly_available
+#imageName=jd-mpc-cn-north-1-inner.jcr.service.jdcloud.com/mpcimage/9ntrain:coodinator_jttest
+#imageName=jd-mpc-cn-north-1-inner.jcr.service.jdcloud.com/mpcimage/9ntrain:coordinator_pk_release
+
+# 1.compile
+# settins.xml's location need to be customized
+mvn  -s /c/Users/Administrator/.m2/settings.xml  clean package -Dmaven.test.skip=true
+
+# 2.build image
+rm ./docker/$jarName
+cp ./target/$jarName ./docker/$jarName
+cd docker
+docker rmi $imageName
+docker build -f Dockerfile.jre8 -t $imageName .
+
+# 3.push
+docker push $imageName

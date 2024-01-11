@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package pb;
+option java_multiple_files = true;
+option java_package = "predict";
+
+message FeatureValueProto {
+  message StringList {
+    repeated string value = 1;
+  }
+  message DoubleList {
+    repeated double value = 1;
+  }
+  message FloatList {
+    repeated float value = 1;
+  }
+  message IntList {
+    repeated int64 value = 1;
+  }
+  message ByteList {
+    repeated bytes value = 1;
+  }
+  oneof value {
+    string s_value = 1;
+    double d_value = 2; 
+    int64 i_value = 3;
+    bytes b_value = 4;
+    StringList s_list = 5;
+    DoubleList d_list = 6;
+    IntList i_list = 7;
+    ByteList b_list = 8;
+    FloatList f_list = 9;
+  }
+}
+
+message ValueMapProto {
+  bytes id = 1;
+  map<string, FeatureValueProto> value_map = 2;
+}
+
+message FeaturesListProto {
+    repeated ValueMapProto FeaturesList = 1;
+}
+
+message Request {
+    FeaturesListProto examples = 1;
+}
+
+// data type of of tensor
+enum DataType {
+  DT_INVALID = 0;
+  DT_DOUBLE = 1;
+  DT_INT32 = 2;
+  DT_STRING = 3;
+  DT_INT64 = 4;
+};
+ 
+// shape of a tensor
+message ShapeProto {
+  message Dim {
+    int64 size = 1;
+    string name = 2;    // Optional name of the tensor dimension.
+  };
+
+  repeated Dim dim = 2;
+};
+ 
+// representing a matrix tensor.
+message Matrix {
+  //DataType dtype = 1;
+ 
+  // Shape of the tensor. TODO(touts): sort out the 0-rank issues.
+  //ShapeProto shape = 2;
+ 
+  // DT_DOUBLE.
+  repeated double double_val = 3 [packed = true];
+ 
+  // DT_INT32, DT_INT16, DT_INT8, DT_UINT8.
+  //repeated int32 int_val = 4 [packed = true];
+ 
+  // DT_STRING.
+  //repeated string str_val = 5;
+ 
+  // DT_INT64.
+  //repeated int64 int64_val = 6 [packed = true];
+
+  bytes id = 7;
+};
+
+message Response {
+    repeated  bytes failed_examples = 1;
+    repeated Matrix success_matrix = 2;
+}
+
+service ApiService {
+    rpc Predict(Request) returns (Response);
+}

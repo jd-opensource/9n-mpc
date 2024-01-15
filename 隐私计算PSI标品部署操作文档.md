@@ -62,7 +62,7 @@
     <td>coordinator</td>
     <td>4c8g</td>
     <td>coordinator-opensource</td>
-    <td>JD</td>
+    <td>自主生成</td>
     <td>-</td>
   </tr>
   <tr>

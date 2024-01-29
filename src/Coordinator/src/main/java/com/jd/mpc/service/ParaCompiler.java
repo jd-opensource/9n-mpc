@@ -1,13 +1,6 @@
 package com.jd.mpc.service;
 
-import java.io.OutputStream;
 import java.io.StringReader;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -27,7 +20,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,7 +31,6 @@ import com.jd.mpc.common.enums.TaskStatusEnum;
 import com.jd.mpc.common.enums.TaskTypeEnum;
 import com.jd.mpc.common.response.CommonException;
 import com.jd.mpc.common.util.CommonUtils;
-import com.jd.mpc.common.util.EncryptUtils;
 import com.jd.mpc.common.util.GsonUtil;
 import com.jd.mpc.common.util.ParameterParseUtil;
 import com.jd.mpc.domain.config.ResourceLimitPolicy;
@@ -49,12 +40,11 @@ import com.jd.mpc.domain.offline.commons.PreJob;
 import com.jd.mpc.domain.offline.commons.SubTask;
 import com.jd.mpc.redis.RedisService;
 
-import cn.hutool.core.net.NetUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * @author luoyuyufei1
+ *
  * @date 2022/1/13 11:01 上午
  */
 @Component
@@ -94,8 +84,8 @@ public class ParaCompiler {
     @Value("${target}")
     private String localTarget;
 
-    @Value("${mount.data.path}")
-    private String mountDataPath;
+    @Value("${mount.data.path:/mnt/data/}")
+    private String mountDataPath="/mnt/data/";
 
     @Value("${k8s.namespace}")
     private String nameSpace;
@@ -105,9 +95,6 @@ public class ParaCompiler {
 
     @Resource
     private FileService fileService;
-
-    @Resource
-    private TaskSupport taskSupport;
 
     @Value("${node.ip}")
     private String nodeIp;
@@ -195,9 +182,6 @@ public class ParaCompiler {
                     break;
                 case MPC:
                     job = this.compileMpc(preJob);
-                    break;
-                case PLUMBER:
-                    job = this.compilePlumber(preJob);
                     break;
                 case LINEAR_EVALUATE:
                     job = this.compileLinearEvaluate(preJob);
@@ -362,59 +346,6 @@ public class ParaCompiler {
         // 填充job
         return Job.builder().id(preJob.getId()).type(preJob.getType())
                 .subTaskList(Collections.singletonList(subTask)).build();
-    }
-
-    /**
-     *
-     * @param preJob
-     * @return
-     */
-    public Job compilePlumber(PreJob preJob) {
-        OfflineTask task = this.initOriTask(preJob);
-        task.setName(CommonUtils.genPodName(task, null));
-        Map<String, String> bizParameters = task.getParameters();
-        Map<String, Object> targetInfo = GsonUtil.changeGsonToMaps(bizParameters.get("targetInfo"));
-        // 修改输出源的文件目录为/mnt/data targetInfoMap
-        String outputPrefix = bizParameters.containsKey("outputPrefix") ? bizParameters.get("outputPrefix") : "";
-        String processedDataDir = getOutputPath(nameSpace, task, "output-dir",outputPrefix);
-        List<String> madeDirs = fileService.mkListDirs(Collections.singletonList(processedDataDir), task.getBdpAccount(), task.getStoreType());
-        processedDataDir = madeDirs.get(0);
-
-        targetInfo.put("fileLocation", "file://" + processedDataDir);
-        // srcInfoMap
-        Map<String, Object> srcInfoMap = GsonUtil.changeGsonToMaps(bizParameters.get("srcInfo"));
-        List<Map<String, String>> dsList = (List<Map<String, String>>) srcInfoMap.get("dsList");
-        Map<String, String> dbMap = dsList.get(0);
-        String dbPassword = dbMap.get("dbPassword");
-        System.out.println(dbPassword);
-        EncryptUtils.setup("Albus Dumbledore's secret weapon");
-        dbMap.put("dbPassword", EncryptUtils.encrypt(dbPassword));
-
-        bizParameters.put("srcInfo", GsonUtil.createGsonString(srcInfoMap));
-        bizParameters.put("targetInfo", GsonUtil.createGsonString(targetInfo));
-        bizParameters.put("jobId", CommonUtils.getNumFromStr(bizParameters.get("app-id")));
-        bizParameters.put("jobName", bizParameters.get("app-id"));
-
-        Map<String, String> extParameters = new HashMap<>();
-        extParameters.put("CONFIG_URL",
-                "http://" + NetUtil.getLocalhostStr() + ":8080/plumber/config?id=" + task.getId());
-        extParameters.put("FINISH_URL",
-                "http://" + NetUtil.getLocalhostStr() + ":8080/plumber/success?id=" + task.getId()
-                        + "&index=" + task.getTaskIndex() + "&nodeId=0");
-        extParameters.put("ERROR_URL",
-                "http://" + NetUtil.getLocalhostStr() + ":8080/plumber/error?id=" + task.getId()
-                        + "&index=" + task.getTaskIndex() + "&nodeId=0");
-        extParameters.put("INTERFACE_TYPE", "rest");
-        task.setExtParameters(extParameters);
-        task.setDeploymentPath(DeploymentPathConstant.PLUMBER_BASE);
-        Job job = new Job();
-        job.setId(task.getId());
-        job.setType(TaskTypeEnum.PLUMBER.getName());
-        SubTask subTask = SubTask.builder().id(task.getId()).subId(0)
-                .status(TaskStatusEnum.NEW.getStatus()).tasks(Collections.singletonList(task))
-                .build();
-        job.setSubTaskList(Collections.singletonList(subTask));
-        return job;
     }
 
     /**

@@ -7,7 +7,7 @@ import java.util.Set;
 /**
  * 任务对象状态
  *
- * @author luoyuyufei1
+ * 
  * @date 2021/11/23 7:30 下午
  */
 @Data

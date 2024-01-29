@@ -8,7 +8,7 @@ import com.jd.mpc.domain.offline.commons.PreJob;
 import lombok.Data;
 
 /**
- * @Author: tiangengle1
+ * 
  * @Date: 2022/3/17
  */
 @Data

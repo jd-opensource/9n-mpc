@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 外部接口层
  *
- * @author luoyuyufei1
+ * 
  * @date 2021/9/22 6:26 下午
  */
 @Slf4j
@@ -343,7 +343,6 @@ public class OuterController {
 
     /**
      * 创建实例
-     * curl -H "Content-Type:application/json" -X POST -d '{"processID":"TestProcess_buffalo","taskId":"1031207","appId":"ae.celling.cn","userToken":"URMc7530da3c5e82bb21d4532913381c782","appToken":"bb2caaee547dae1155be977b95195344"}' http://mpc-zeebe-monitor-test.jd.local/process/instance/create
      * @return
      */
     @PostMapping("/coordinator/outer/process/instance/create")

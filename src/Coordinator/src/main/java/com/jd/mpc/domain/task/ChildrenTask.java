@@ -13,7 +13,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 /**
  * 子任务表
  *
- * @author : liuyk
+ * 
  */
 @SuppressWarnings("unused")
 @TableName("children_task")

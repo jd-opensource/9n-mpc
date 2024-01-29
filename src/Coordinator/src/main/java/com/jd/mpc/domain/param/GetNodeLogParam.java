@@ -5,7 +5,6 @@ import lombok.Data;
 /**
  * 获取联邦算子日志的方法入参
  *
- * @author chenghekai1
  * @date 2023/06/27
  */
 @Data

@@ -43,7 +43,6 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Http工具
  *
- * @author sunxiaopeng9
  */
 @Slf4j
 public class HttpUtil {

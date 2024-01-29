@@ -16,7 +16,7 @@ import static org.springframework.core.env.StandardEnvironment.SYSTEM_PROPERTIES
 /**
  * 启动类
  *
- * @author luoyuyufei1
+ * 
  * @date 2021/9/22 2:21 下午
  */
 
@@ -28,7 +28,9 @@ import static org.springframework.core.env.StandardEnvironment.SYSTEM_PROPERTIES
 public class MpcApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(MpcApplication.class, args);
+        SpringApplication sa = new SpringApplication(MpcApplication.class);
+        sa.setAllowCircularReferences(Boolean.TRUE);// 加入的参数
+        sa.run(args);
     }
 
 }

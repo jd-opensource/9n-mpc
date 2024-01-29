@@ -3,7 +3,7 @@ package com.jd.mpc.domain.offline.jxz;
 import lombok.Getter;
 
 /**
- * @author luoyuyufei1
+ * 
  * @date 2022/1/17 2:31 下午
  */
 @Getter

@@ -3,6 +3,7 @@ package com.jd.mpc.redis;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.DataType;
 import org.springframework.data.redis.core.*;
+import org.springframework.data.redis.core.ScanOptions.ScanOptionsBuilder;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -73,7 +74,7 @@ public class RedisService {
     public Set<String> scans(String pattern, Integer size) {
         return stringRedisTemplate.execute((RedisCallback<Set<String>>) connection -> {
             Set<String> keysTmp = new HashSet<>();
-            Cursor<byte[]> cursor = connection.scan(new ScanOptions.ScanOptionsBuilder().match(pattern + "*").count(size).build());
+            Cursor<byte[]> cursor = connection.scan(ScanOptions.scanOptions().match(pattern + "*").count(size).build());
             while (cursor.hasNext()) {
                 keysTmp.add(new String(cursor.next()));
             }

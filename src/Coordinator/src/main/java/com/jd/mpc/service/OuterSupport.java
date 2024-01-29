@@ -34,7 +34,7 @@ import org.springframework.util.StringUtils;
 import sun.misc.BASE64Encoder;
 
 /**
- * @author luoyuyufei1
+ * 
  * @date 2022/1/11 6:36 下午
  */
 
@@ -94,7 +94,6 @@ public class OuterSupport {
      * @return 结果
      */
     public String syncDataInfo(Map<String, String> map) {
-        log.info("web端调用地址：{}", portalUrl + map.get("url"));
         String res = HttpUtil.post(portalUrl + map.get("url"), map.get("data"), null,
                 Collections.singletonMap(headerToken, token));
         log.info("返回结果{}", res);

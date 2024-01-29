@@ -13,7 +13,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Util class for encrypt and decrypt the given content by AES , during which will encrypt and decrypt by JDBase64 for the second time.
- * @author bjhanfei
  *
  */
 @Slf4j
@@ -58,39 +57,6 @@ public final class EncryptUtils {
         }
     }
 
-    /**
-     * decrypt the content by AES.
-     * @param content encrypted string by AES and JDBase64.
-     * @return original content
-     */
-    public static final String decrypt(final String content) {
-        try {
-            if (isNull(content)) {
-                log.error("content is null!");
-                throw new RuntimeException("content is null!");
-            }
-            if (isNull(internalKeyword)) {
-                log.error("keyword not setup yet..");
-                throw new RuntimeException("keyword not setup yet..");
-            }
-            KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-            SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG" );
-            secureRandom.setSeed(internalKeyword.getBytes());
-            keyGenerator.init(128,secureRandom);
-            SecretKey secretKey = keyGenerator.generateKey();
-            byte[] encodedFormat = secretKey.getEncoded();
-            SecretKeySpec secretKeySpec = new SecretKeySpec(encodedFormat, "AES");
-            Cipher cipher = Cipher.getInstance("AES");
-            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
-            byte[] contentBytes = Base64Util.Base64Decode(content); //first decrypt by our own base64.
-            byte[] result = cipher.doFinal(contentBytes);
-            return new String(result);
-        } catch (Throwable e) {
-            log.error("error occurs in decrypt content : " + content);
-            log.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-    }
 
     private static final boolean isNull(final String str) {
         return str == null || str.trim().length() == 0;

@@ -3,7 +3,7 @@ package com.jd.mpc.domain.vo;
 import lombok.Data;
 
 /**
- * @author luoyuyufei1
+ * 
  * @date 2022/1/25 10:20 上午
  */
 @Data

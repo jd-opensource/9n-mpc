@@ -45,7 +45,7 @@ import okhttp3.OkHttpClient;
 /**
  * k8s服务类
  *
- * @author luoyuyufei1
+ * 
  * @date 2021/9/24 12:32 下午
  */
 @Slf4j

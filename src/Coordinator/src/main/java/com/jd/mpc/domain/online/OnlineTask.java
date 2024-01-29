@@ -5,7 +5,7 @@ import lombok.Data;
 /**
  * 全量任务对象【实时】
  *
- * @author luoyuyufei1
+ * 
  * @date 2021/11/8 6:09 下午
  */
 @Data

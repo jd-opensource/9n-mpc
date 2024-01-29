@@ -44,8 +44,7 @@ public abstract class AbstractZeebeService implements IZeebeService{
     String proxyLocalPort;
     @Value("${target}")
     String localTarget;
-    @Value("${mount.data.path}")
-    String mountDataPath;
+
     @Value("${k8s.namespace}")
     String nameSpace;
     @Resource

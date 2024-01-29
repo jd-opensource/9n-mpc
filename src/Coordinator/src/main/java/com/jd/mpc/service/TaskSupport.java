@@ -42,7 +42,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * @author luoyuyufei1
+ * 
  * @date 2022/1/11 6:36 下午
  */
 

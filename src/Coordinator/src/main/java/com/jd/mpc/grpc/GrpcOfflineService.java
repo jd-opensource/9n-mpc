@@ -31,7 +31,7 @@ import offline.OfflineServiceGrpc;
 /**
  * grpc离线任务服务
  *
- * @author luoyuyufei1
+ * 
  * @date 2021/9/22 2:45 下午
  */
 @Slf4j

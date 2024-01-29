@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 邮件信息
  *
- * @author luoyuyufei1
+ * 
  * @date 2022/1/5 10:36 上午
  */
 @Data

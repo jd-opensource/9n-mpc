@@ -1,13 +1,10 @@
 package com.jd.mpc.service.task;
 
-import cn.hutool.core.codec.Base64;
 import cn.hutool.crypto.digest.DigestUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import com.google.common.collect.Maps;
 import com.jd.mpc.common.constant.DeploymentPathConstant;
 import com.jd.mpc.common.enums.TaskStatusEnum;
 import com.jd.mpc.common.enums.TaskTypeEnum;
-import com.jd.mpc.common.util.CommonUtils;
 import com.jd.mpc.domain.offline.commons.Job;
 import com.jd.mpc.domain.offline.commons.OfflineTask;
 import com.jd.mpc.domain.offline.commons.PreJob;

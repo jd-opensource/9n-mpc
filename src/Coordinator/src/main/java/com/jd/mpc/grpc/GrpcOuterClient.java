@@ -30,7 +30,7 @@ import outer.GrpcOuterResponse;
 /**
  * 调用jd Grpc服务
  *
- * @author luoyuyufei1
+ * 
  * @date 2021/9/26 10:30 下午
  */
 @Component

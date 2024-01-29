@@ -7,7 +7,7 @@ import java.util.Objects;
 /**
  * k8s资源类型枚举
  *
- * @author luoyuyufei1
+ * 
  * @date 2021/9/26 8:48 下午
  */
 @Getter

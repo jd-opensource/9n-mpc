@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * json任务对象【实时】
  *
- * @author luoyuyufei1
+ * 
  * @date 2021/9/26 2:33 下午
  */
 @EqualsAndHashCode

@@ -5,7 +5,7 @@ import lombok.Data;
 /**
  * table 信息
  *
- * @Author: tiangengle1
+ * 
  * @Date: 2022/3/22
  */
 @Data

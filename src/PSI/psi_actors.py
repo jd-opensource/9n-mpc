@@ -30,7 +30,6 @@ import zlib
 import json
 import struct
 from pyarrow.dataset import dataset
-#from workerAuth.authClient import AuthClient
 import numpy as np
 from ray.data.context import DatasetContext
 import time
@@ -1346,36 +1345,6 @@ def create_argment_parser():
     parser.add_argument("--auth_server", help="防盗版验证服务", default=None)
     return parser
 
-
-def check_auth(target, status_server, actual_app_id, auth_server=None):
-    if auth_server is None:
-        auth_server = os.environ.get('AUTH_SERVER')
-    authclient = AuthClient()
-    cluster_id = os.environ.get("CLUSTER_ID")
-    node_id = os.environ.get("NODE_ID")
-    local_domain = os.environ.get("LOCAL_DOMAIN")
-    info = {
-        "random": 0,  # 随机数
-        "timestamp": 0,  # 当前时间戳,精确到秒
-        "workerType": "psi",  # worker类型
-        "workerVersion": "1.0.0",  # worker版本
-        "taskInfo": {
-            "clusterID": cluster_id,
-            "nodeID": node_id,
-            "localDomain": local_domain,  # 发起方domain
-            "remoteDomain": target if target else local_domain,  # 接收方domain
-            "extra": {}  # 任务额外信息
-        }
-    }
-    logging.info("------{}-------".format(info))
-    res = authclient.requestAuth(auth_server, info)
-    if res[0] != True:
-        set_node_status(status_server, actual_app_id, 0, 501,
-                        result="{}, parameter server cannot run, ps authentication failed".format(res[1]))
-        raise Exception(
-            "{}, parameter server cannot run, ps authentication failed".format(res.args[0]))
-
-
 RAY_OBJECT_STORE_MEMORY_PROPORTION = float(os.environ.get("RAY_OBJECT_STORE_MEMORY_PROPORTION", 0.6))
 RAY_OBJECT_STORE_MEMORY_CAN_SAFE_USE_PROPORTION = float(os.environ.get("RAY_OBJECT_STORE_MEMORY_CAN_SAFE_USE_PROPORTION", 0.8))
 
@@ -1483,10 +1452,6 @@ if __name__ == "__main__":
             actual_example_id_name = int(column_index_or_names[0])
         except:
             actual_example_id_name = column_index_or_names[0]
-
-        #
-        # check_auth(args.target, args.status_server,
-        #            actual_app_id, args.auth_server)
 
         # actual doing
         ray.init(object_store_memory=chose_object_store_memory_strategy(args.input, actual_buckets, n_parallels))

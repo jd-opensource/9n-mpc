@@ -13,8 +13,24 @@
 # limitations under the License.
 
 from setuptools import setup, find_packages
+from setuptools.command.build_py import build_py
+import os
+
+
+class CustomBuildPy(build_py):
+    def run(self):
+        self.generate_proto()
+        super().run()
+
+    def generate_proto(self):
+        os.system(
+            "python3 -m grpc_tools.protoc -I. --python_out=. $( find . \\( -name \"*.proto\" \\) )")
+
 
 setup(
     name="interconnection_psi",
-    packages=find_packages()
+    packages=find_packages(),
+    cmdclass={
+        'build_py': CustomBuildPy,
+    },
 )

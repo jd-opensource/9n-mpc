@@ -1,0 +1,179 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "outer";
+
+/**
+ * 外部grpc服务定义【非coordinator交互】
+ */
+service OuterService {
+
+  /**
+   * 同步实时信息
+   */
+  rpc syncDataInfo (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+   * 测试
+   */
+  rpc test (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+   * 上传文件
+   */
+  rpc uploadFile (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+   * 获取文件大小
+   */
+  rpc getFileSizeInfo (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+
+  /**
+   * 获取文件列信息
+   */
+  rpc getFileSchemaInfo (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+   * 回调接口
+   */
+  rpc callback (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+   * 获取k8s资源
+   */
+  rpc getResourcesInfo (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+   * 获取已占用资源
+   */
+  rpc getUsedResources (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+   * 查看算子日志
+   */
+  rpc getJobLogs (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+   * 查看算子结果
+   */
+  rpc getJobResults (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+   * 查看在线预测调用次数
+   */
+  rpc getPredictNum (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  rpc getFileHeader(GrpcOuterRequest) returns (GrpcOuterResponse){
+  }
+
+  rpc getFile(GrpcOuterRequest) returns (GrpcOuterResponse){
+  }
+
+  rpc mkdir(GrpcOuterRequest) returns (GrpcOuterResponse){
+  }
+
+  rpc exist(GrpcOuterRequest) returns (GrpcOuterResponse){
+  }
+
+  rpc predict(GrpcOuterRequest) returns (GrpcOuterResponse){
+  }
+  rpc getFileSize (GrpcOuterRequest) returns (GrpcOuterResponse){
+  }
+  rpc closeInstance (GrpcOuterRequest) returns (GrpcOuterResponse){
+  }
+  /**
+ * 新增代理信息
+ */
+  rpc addProxy (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+  /**
+  setCustomerIdUrl
+   */
+  rpc setCustomerIdUrl(GrpcOuterRequest) returns (GrpcOuterResponse){}
+
+  /**
+  getEtlHeaders
+ */
+  rpc getEtlHeaders(GrpcOuterRequest) returns (GrpcOuterResponse){}
+  /**
+  deployIsExist
+ */
+  rpc deployIsExist(GrpcOuterRequest) returns (GrpcOuterResponse){}
+  /**
+  getInstance
+  */
+  rpc getInstance(GrpcOuterRequest) returns (GrpcOuterResponse){}
+
+  /**
+  getRawDataFile
+   */
+  rpc getRawDataFiles(GrpcOuterRequest) returns (GrpcOuterResponse){}
+
+  /**
+   * 查看联邦算子日志
+   */
+  rpc getNodeLog (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+  查看fileservice日志
+   */
+  rpc getFileServiceLog (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  /**
+  查看coor日志
+   */
+  rpc getCoordinatorLog (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+  rpc getNamespace (GrpcOuterRequest) returns (GrpcOuterResponse) {
+  }
+
+
+}
+
+//定义消息类型
+message GrpcOuterRequest {
+  string test = 1;
+  map<string, string> dataInfo = 2;
+  string fileName = 3;
+  string filePath = 4;
+  string storeType = 5;
+  string json = 6;
+  string callbackUrl = 7;
+  string result = 8;
+  string id = 9;
+  string data = 10;
+  string customerId=11;
+  string customerIdUrl=12;
+  string bdpAccount=13;
+  bytes byteArr = 14;
+}
+
+message  GrpcOuterResponse {
+  bool isSucceed = 1;
+  string res = 2;
+  string test = 3;
+  string json = 4;
+  int64 num = 5;
+}
+
+
+
+
+
+
+

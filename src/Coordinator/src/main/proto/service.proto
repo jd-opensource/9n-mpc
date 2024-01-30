@@ -1,0 +1,235 @@
+syntax = "proto3";
+
+import "parameter.proto";
+import "ast.proto";
+
+package app;
+
+//option go_package = "coding.jd.com/mpc/jasmine/models/pb";
+option java_multiple_files = true;
+option java_package = "online";
+
+message PingRequest { string Msg = 1; }
+
+message PingReply { string Msg = 1; }
+
+message Reply {
+    int32 Status = 1;
+    string Msg = 2;
+}
+
+message LoadCSVRequest {
+    app.TaskInfo TaskID = 1;
+    app.LoadCSVParameter Parameter = 2;
+}
+
+message ExportCSVRequest {
+    app.TaskInfo TaskID = 1;
+    app.ExportCSVParameter Parameter = 2;
+}
+
+message LoadDataRequest {
+    app.TaskInfo TaskID = 1;
+    app.LoadDataParameter Parameter = 2;
+}
+
+message ExportDataRequest {
+    app.TaskInfo TaskID = 1;
+    app.ExportDataParameter Parameter = 2;
+}
+
+message ExportDataReply {
+    Reply Rep = 1;
+    app.ExportedData Data = 2;
+}
+
+message ShareTableRequest {
+    app.TaskInfo TaskID = 1;
+    app.ShareTableParameter Parameter = 2;
+}
+
+message RevealTableRequest {
+    app.TaskInfo TaskID = 1;
+    app.RevealTableParameter Parameter = 2;
+}
+
+message JoinTableRequest {
+    app.TaskInfo TaskID = 1;
+    app.JoinParameter Parameter = 2;
+}
+
+message FilterTableRequest {
+    app.TaskInfo TaskID = 1;
+    app.FilterParameter Parameter = 2;
+}
+
+message AggregateTableRequest {
+    app.TaskInfo TaskID = 1;
+    app.AggregateParameter Parameter = 2;
+}
+
+message ConcatColsRequest {
+    app.TaskInfo TaskID = 1;
+    app.ConcatColsParameter Parameter = 2;
+}
+
+message ConcatRequest {
+    app.TaskInfo TaskID = 1;
+    app.ConcatParameter Parameter = 2;
+}
+
+message SelectRequest {
+    app.TaskInfo TaskID = 1;
+    app.SelectParameter Parameter = 2;
+}
+
+message CreateColRequest {
+    app.TaskInfo TaskID = 1;
+    app.CreateColParameter Parameter = 2;
+}
+
+message DeleteTablesRequest {
+    app.TaskInfo TaskID = 1;
+    app.DeleteTablesParameter Parameter = 2;
+}
+
+message UploadFileRequest {
+    oneof Data {
+        string FileName = 1;
+        bytes Content = 2;
+    }
+}
+
+message BatchParameter {
+    oneof Parameter {
+        app.LoadCSVParameter LoadCSVReq = 1;
+        app.ExportCSVParameter ExportCSVReq = 2;
+        app.ShareTableParameter SharedTableReq = 3;
+        app.RevealTableParameter RevealTableReq = 4;
+        app.JoinParameter JoinTableReq = 5;
+        app.FilterParameter FilterTableReq = 6;
+        app.AggregateParameter AggregateTableReq = 7;
+        app.ConcatColsParameter ConcatColsReq = 8;
+        app.ConcatParameter ConcatReq = 9;
+        app.SelectParameter SelectReq = 10;
+        app.CreateColParameter CreateColReq = 11;
+        app.DeleteTablesParameter DeleteTablesReq = 12;
+        app.LoadDataParameter LoadDataReq = 13;
+        app.ExportDataParameter ExportDataReq = 14;
+    }
+}
+
+message BatchRequest {
+    app.TaskInfo TaskID = 1;
+    repeated BatchParameter Parameters = 2;
+}
+
+message BatchOutput {
+    message APIOutputData {
+        oneof Output { app.ExportedData ExportDataOutput = 1; }
+    }
+    repeated APIOutputData Results = 1;
+}
+
+message BatchReply {
+    Reply Rep = 1;
+    BatchOutput Output = 2;
+}
+
+message DownloadFileRequest { string FileName = 1; }
+
+message DownloadFileReply { bytes Content = 1; }
+
+message Empty {}
+
+message ForceCleanRequest {}
+message ForceCleanReply {}
+message InitializeRequest {}
+message InitializeReply {}
+
+message ExecuteRequest {
+    app.TaskInfo TaskID = 1;
+    app.Code Code = 2;
+}
+
+message ExportedInt { int64 Value = 1; }
+message ExportedIntArray { repeated int64 Values = 1; }
+message ExportedIntMatrix {
+    int64 Row = 1;
+    int64 Col = 2;
+    repeated int64 Values = 3;
+}
+
+message ExecuteOutput {
+    message ExecuteOutputData {
+        oneof Output {
+            ExportedInt ExportedIntOutput = 1;
+            ExportedIntArray ExportedIntArrayOutput = 2;
+            ExportedIntMatrix ExportedIntMatrixOutput = 3;
+        }
+    }
+    repeated ExecuteOutputData Results = 1;
+}
+
+message ExecuteReply {
+    Reply Rep = 1;
+    ExecuteOutput Output = 2;
+}
+
+message OTTripleConfig {
+    uint64 IntBuffer = 1;
+    uint32 IntThread = 2;
+    uint64 IntBucket = 3;
+    uint64 BinaryBuffer = 4;
+    uint32 BinaryThread = 5;
+    uint64 BinaryBucket = 6;
+}
+
+message CreateResourceRequest {
+    app.TaskInfo TaskID = 1;
+    OTTripleConfig TripleConfig = 2;
+}
+
+// The MPC service definition.
+service MPC {
+    rpc Ping(PingRequest) returns (PingReply) {}
+    rpc OpenNetwork(Empty) returns (Empty) {}
+    rpc CloseNetwork(Empty) returns (Empty) {}
+
+    rpc Batch(BatchRequest) returns (BatchReply) {}
+    rpc AsyncBatch(BatchRequest) returns (Reply) {}
+    rpc BatchResult(app.TaskInfo) returns (BatchReply) {}
+    rpc LastJobStatus(app.TaskInfo) returns (Reply) {}
+
+    rpc LoadCSV(LoadCSVRequest) returns (Reply) {}
+    rpc ExportCSV(ExportCSVRequest) returns (Reply) {}
+    rpc LoadData(LoadDataRequest) returns (Reply) {}
+    rpc ExportData(ExportDataRequest) returns (ExportDataReply) {}
+    rpc ShareTable(ShareTableRequest) returns (Reply) {}
+    rpc RevealTable(RevealTableRequest) returns (Reply) {}
+    rpc JoinTable(JoinTableRequest) returns (Reply) {}
+    rpc AsyncJoinTable(JoinTableRequest) returns (Reply) {}
+    rpc FilterTable(FilterTableRequest) returns (Reply) {}
+    rpc AsyncFilterTable(FilterTableRequest) returns (Reply) {}
+    rpc AggregateTable(AggregateTableRequest) returns (Reply) {}
+    rpc AsyncAggregateTable(AggregateTableRequest) returns (Reply) {}
+    rpc ConcatCols(ConcatColsRequest) returns (Reply) {}
+    rpc Concat(ConcatRequest) returns (Reply) {}
+    rpc Select(SelectRequest) returns (Reply) {}
+    rpc CreateCol(CreateColRequest) returns (Reply) {}
+    rpc AsyncCreateCol(CreateColRequest) returns (Reply) {}
+    rpc DeleteTables(DeleteTablesRequest) returns (Reply) {}
+
+    rpc ForceClean(ForceCleanRequest) returns (ForceCleanReply) {}
+    rpc Initialize(InitializeRequest) returns (InitializeReply) {}
+
+    rpc Execute(ExecuteRequest) returns (ExecuteReply) {}
+    rpc AsyncExecute(ExecuteRequest) returns (Reply) {}
+    rpc ExecuteResult(app.TaskInfo) returns (ExecuteReply) {}
+
+    rpc CreateResource(CreateResourceRequest) returns (Reply) {}
+    rpc DeleteResource(app.TaskInfo) returns (Reply) {}
+
+    rpc UploadFile(stream UploadFileRequest) returns (Reply) {}
+    rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileReply) {}
+}

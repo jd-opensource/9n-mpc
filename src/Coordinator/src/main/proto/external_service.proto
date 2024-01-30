@@ -1,0 +1,121 @@
+syntax = "proto3";
+option java_package = "fedlearner.app";
+package fedlearner.common;
+
+/****start****/
+message ModelTrainMeta {
+  string model_uri = 1;
+  string version = 2;
+  int32 batch_size = 3;
+  int32 worker_num = 4;
+  int32 checkpoint_interval = 5;
+  int32 eval = 6;
+}
+
+message DataMeta {
+  string data_source_name = 1;
+  string train_data_start= 2;
+  string train_data_end = 3;
+  int32 data_num_epoch = 4;
+  int32 total_block_num = 5;
+  int32 total_example_num = 6;
+}
+message Block_info {
+  string block_id = 1;
+  int32 block_example_num = 2;;
+}
+message CheckJoinDataRequest {
+  string app_id = 1;
+  DataMeta data_meta = 2;
+  repeated Block_info blocks = 3;
+}
+message TrainRequest {
+  string app_id = 1;
+  ModelTrainMeta model_train_mata = 2;
+  DataMeta data_meta = 3;
+}
+
+message StopTrainRequest {
+  string app_id = 1;
+  uint32 type = 2;
+  string msg = 3;
+}
+
+/****求交例行化 增加原始数据校验请求****/
+message CheckRawDataRequest {
+  string app_id = 1;
+  string data_source_name = 2;
+  string train_data_start= 3;
+  string train_data_end = 4;
+  int32 partition_num = 5;
+}
+/****求交例行化 增加提交求交请求****/
+message SubmitJoinRequest {
+  string app_id = 1;
+  string data_source_name = 2;
+  string train_data_start= 3;
+  string train_data_end = 4;
+  int32 partition_num = 5;
+  float negative_sampling_rate = 6;
+}
+
+/****求交例行化 增加结束求交请求****/
+message StopJoinRequest {
+  string app_id = 1;
+  string data_source_name = 2;
+  string train_data_start= 3;
+  string train_data_end = 4;
+}
+
+message Status {
+  uint32 status = 1;
+  string err_msg = 2;
+  string app_id = 3;
+}
+
+enum Role {
+    FOLLOWER = 0;
+    LEADER = 1;
+}
+
+service Scheduler {
+  /****求交例行化 增加提交求交请求****/
+  rpc SubmitJoin(SubmitJoinRequest) returns (Status);
+  /****求交例行化 增加结束求交请求****/
+  rpc StopJoin(StopJoinRequest) returns (Status);
+  rpc SubmitTrain(TrainRequest) returns (Status);
+  rpc StopTrain(StopTrainRequest) returns (Status);
+}
+
+/****dataworker, trainer make pair****/
+service StateSynService {
+  rpc Syn(AppSynRequest) returns (Status);
+}
+service CheckJoinedDataService {
+  /****求交例行化 增加原始数据检查，当指定数据的原始数据不存在或者有缺失时，应当返回失败****/
+  rpc CheckRawData(CheckRawDataRequest) returns (Status);
+  rpc CheckJoinedData(CheckJoinDataRequest) returns (Status);
+}
+message AppSynRequest {
+  string app_id = 1;
+  repeated ServicePair service_pair = 2;
+  AppCtrlFlag ctrl_flag = 3;
+}
+
+enum AppCtrlFlag {
+  CREATE = 0;
+  SHUTDOWN = 1;
+  FINISH = 2;
+}
+
+message ServicePair {
+  string leader_uuid = 1;
+  string follower_uuid = 2;
+  ServiceCtrlFlag ctrl_flag = 3;
+}
+
+enum ServiceCtrlFlag {
+  RST = 0;
+  SYN = 1;
+  FIN = 2;
+}

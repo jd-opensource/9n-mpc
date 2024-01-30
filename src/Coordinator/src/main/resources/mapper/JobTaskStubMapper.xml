@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jd.mpc.mapper.JobTaskStubMapper">
+  <resultMap id="BaseResultMap" type="com.jd.mpc.domain.cert.JobTaskStub">
+
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="parent_task_id" jdbcType="VARCHAR" property="parentTaskId" />
+    <result column="pre_job_json" jdbcType="VARCHAR" property="preJobJson" />
+    <result column="job_target" jdbcType="VARCHAR" property="jobTarget" />
+    <result column="job_distributor_sign" jdbcType="VARCHAR" property="jobDistributorSign" />
+    <result column="job_executor_sign" jdbcType="VARCHAR" property="jobExecutorSign" />
+    <result column="job_distributor_cert" jdbcType="VARCHAR" property="jobDistributorCert" />
+    <result column="job_executor_cert" jdbcType="VARCHAR" property="jobExecutorCert" />
+    <result column="is_local" jdbcType="TINYINT" property="isLocal" />
+    <result column="create_at" jdbcType="TIMESTAMP" property="createAt" />
+    <result column="update_at" jdbcType="TIMESTAMP" property="updateAt" />
+    <result column="is_deleted" jdbcType="TINYINT" property="isDeleted" />
+  </resultMap>
+
+</mapper>

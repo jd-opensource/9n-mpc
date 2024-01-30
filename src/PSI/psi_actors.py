@@ -33,8 +33,6 @@ from pyarrow.dataset import dataset
 import numpy as np
 from ray.data.context import DatasetContext
 import time
-from link import api
-import cloudpickle
 import ray._private.ray_constants as ray_constants
 
 def init_logging(app_id, level=logging.INFO, logdir='/mnt/logs', platform_id='9n-mpc', filename='run.log', catch_tf=False, custom_node_id=None):
@@ -519,7 +517,7 @@ class BlockDispatchActor:
     """
     """
 
-    def __init__(self, link_cfg:str, app_id: str, data_dir_or_path: str, with_head: bool = True,
+    def __init__(self, app_id: str, data_dir_or_path: str, with_head: bool = True,
                  data_protocol: str = None, data_format: str = None, data_block_count_if_file: int = None, example_id_name: Union[str, int] = None) -> None:
         """
         """
@@ -548,12 +546,6 @@ class BlockDispatchActor:
         self.data_type = fs.FileType.File
         #
         self.example_id_name = example_id_name
-
-        self.link_ins = api.CreateLink(link_cfg)
-        self.link_ins.Start()
-        self.lin_sess = self.link_ins.CreateSession('interaction')
-
-        self.pir_sender_joined_data_status = []
 
         init_logging(app_id=app_id, custom_node_id="dispatcher")
 
@@ -633,20 +625,6 @@ class BlockDispatchActor:
             return (find_index, data)
         else:
             return (find_index, self.data_paths[find_index])
-
-    def sync_data_status(self, role, joined_data_status:int) -> None:
-        """
-        """
-        if role == RoleType.RECEIVER:
-            # logging.info(f"send data status joined_data_status: {joined_data_status}")
-            self.lin_sess.Send(self.lin_sess.Next(), cloudpickle.dumps(joined_data_status))
-        else:
-            joined_data_status = cloudpickle.loads(self.lin_sess.Recv(self.lin_sess.Next()))
-            # logging.info(f"recv data status joined_data_status: {joined_data_status}")
-            self.pir_sender_joined_data_status.append(joined_data_status)
-
-            if len(self.pir_sender_joined_data_status) == len(self.data_blocks):
-                logging.info(f"total joined_data_status: {sum(self.pir_sender_joined_data_status)}")
 
     def change_data_status(self, block_id: int, status: BlockStatus,
                            original_data_status: tuple, joined_data_status: tuple) -> None:
@@ -935,10 +913,7 @@ class PsiPirActor:
         self._sync_block_status(
             block_id, BlockStatus.PROCESSED, original_data_status, joined_data_status)
         logging.info(f"do_action end block_id={block_id} actor_index={self.actor_index}")
-        
-        if self.join_type == JoinType.PIR:
-            ray.get(self.dispatch_actor.sync_data_status.remote(self.role, joined_data_status[0]), timeout=15.0)
-        
+                
         return (self.actor_index, block_id, recBatchOut_ref)
 
     def _do_psi(self, block_id: int, block_data: pa.RecordBatch) -> pa.RecordBatch:
@@ -1194,11 +1169,7 @@ def add_schema_to_all_empty_blocks(blocks):
 
 def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, local_ip: str, local_start_port, remote_proxy_address, bucket_num,
             role_type, local_domain, remote_domain, redis_addr, redis_pwd, output_dir, max_actors=2, csv_delimiter=",", avg_actor_cpus=1.0, engine="ecdh"):
-    dispatch_actor = BlockDispatchActor.remote(link_cfg=json.dumps({"parties": sorted([local_domain, remote_domain]),
-                                                'id':app_id,'domain':local_domain,'host':f'0.0.0.0:{local_start_port-1}',
-                                                'redis_server':redis_addr,'redis_password':redis_pwd,
-                                                'peers':[{'target':remote_domain,'remote':remote_proxy_address}]}),
-                                                app_id=app_id, data_dir_or_path=data_path, with_head=with_head,
+    dispatch_actor = BlockDispatchActor.remote(app_id=app_id, data_dir_or_path=data_path, with_head=with_head,
                                                data_block_count_if_file=bucket_num, example_id_name=example_id_name)
     # must wait data initialize complete
     ray.get(dispatch_actor.init_data.remote())
@@ -1329,7 +1300,7 @@ def create_argment_parser():
     parser.add_argument("--csv-delimiter", help="CSV文件分隔符",
                         type=str, default=",")
     parser.add_argument("--engine", help="求交引擎",
-                        type=str, default="rr22", choices=["ecdh", "rr22"])
+                        type=str, default="ecdh", choices=["ecdh", "rr22"])
 
 
     parser.add_argument("--supplier", help="选择输出的格式")

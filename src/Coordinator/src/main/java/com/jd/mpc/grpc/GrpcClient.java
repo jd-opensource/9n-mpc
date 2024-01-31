@@ -21,7 +21,7 @@ import predict.ApiServiceGrpc;
 /**
  * grpc客户端
  *
- * 
+ * @author luoyuyufei1
  * @date 2021/9/22 2:56 下午
  */
 @Data

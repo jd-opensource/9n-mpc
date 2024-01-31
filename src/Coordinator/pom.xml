@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.5.14</version>
+        <version>3.0.6</version>
         <relativePath/>
     </parent>
 
@@ -23,18 +23,7 @@
         <mybatis.password>123456</mybatis.password>
         <spring-boot.run.fork>false</spring-boot.run.fork>
     </properties>
-    <!--    <parent>-->
-    <!--        <groupId>org.springframework.boot</groupId>-->
-    <!--        <artifactId>spring-boot-starter-parent</artifactId>-->
-    <!--        <version>2.2.6.RELEASE</version>-->
-    <!--        <relativePath/>-->
-    <!--    </parent>-->
     <dependencies>
-        <!--        <dependency>-->
-        <!--            <groupId>com.alibaba.cloud</groupId>-->
-        <!--            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>-->
-        <!--            <version>2.2.6.RELEASE</version>-->
-        <!--        </dependency>-->
         <dependency>
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
@@ -44,6 +33,30 @@
             <groupId>com.alibaba.boot</groupId>
             <artifactId>nacos-config-spring-boot-starter</artifactId>
             <version>0.2.12</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>snakeyaml</artifactId>
+                    <groupId>org.yaml</groupId>
+                </exclusion>
+                <exclusion>
+                    <groupId>ch.qos.logback</groupId>
+                    <artifactId>logback-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.alibaba.nacos</groupId>
+                    <artifactId>nacos-spring-context</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.nacos</groupId>
+            <artifactId>nacos-spring-context</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>1.4.7</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -53,9 +66,20 @@
                     <artifactId>snakeyaml</artifactId>
                     <groupId>org.yaml</groupId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.quartz-scheduler</groupId>
+                    <artifactId>quartz</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
-<!--        zeebe   -->
+        <!-- https://mvnrepository.com/artifact/org.quartz-scheduler/quartz -->
+        <dependency>
+            <groupId>org.quartz-scheduler</groupId>
+            <artifactId>quartz</artifactId>
+            <version>2.4.0-rc1</version>
+        </dependency>
+
+        <!--        zeebe   -->
         <dependency>
             <groupId>io.camunda</groupId>
             <artifactId>spring-zeebe-starter</artifactId>
@@ -66,18 +90,83 @@
                     <groupId>com.google.protobuf</groupId>
                 </exclusion>
                 <exclusion>
+                    <groupId>io.grpc</groupId>
+                    <artifactId>grpc-protobuf</artifactId>
+                </exclusion>
+                <exclusion>
                     <artifactId>jackson-databind</artifactId>
                     <groupId>com.fasterxml.jackson.core</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>guava</artifactId>
+                    <groupId>com.google.guava</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>io.netty</artifactId>
+                    <groupId>netty-codec</groupId>
+                </exclusion>
+                 <exclusion>
+                    <artifactId>io.netty</artifactId>
+                    <groupId>netty-codec-haproxy</groupId>
+                </exclusion>
+                 <exclusion>
+                    <artifactId>io.netty</artifactId>
+                    <groupId>netty-all</groupId>
+                </exclusion>
+                <exclusion>
+                     <groupId>com.fasterxml.jackson.dataformat</groupId>
+		    		 <artifactId>jackson-dataformat-yaml</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
-
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>1.53.0</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>protobuf-java</artifactId>
+                    <groupId>com.google.protobuf</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>guava</artifactId>
+                    <groupId>com.google.guava</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+		<dependency>
+		    <groupId>io.netty</groupId>
+		    <artifactId>netty-codec</artifactId>
+		    <version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+		    <groupId>io.netty</groupId>
+		    <artifactId>netty-codec-haproxy</artifactId>
+		    <version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+		    <groupId>io.netty</groupId>
+		    <artifactId>netty-all</artifactId>
+		    <version>4.1.86.Final</version>
+		</dependency>
         <dependency>
             <artifactId>jackson-databind</artifactId>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <version>2.12.7.1</version>
+            <version>2.13.4.2</version>
+            <exclusions>
+            </exclusions>
         </dependency>
-
+		<dependency>
+		    <groupId>com.fasterxml.jackson.dataformat</groupId>
+		    <artifactId>jackson-dataformat-yaml</artifactId>
+		    <version>2.15.0</version>
+		    <exclusions>
+		    	<exclusion>
+                      <artifactId>snakeyaml</artifactId>
+                      <groupId>org.yaml</groupId>
+                </exclusion>
+            </exclusions>
+		</dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -86,13 +175,20 @@
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-starter-json</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+    				<artifactId>spring-core</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-tomcat</artifactId>
         </dependency>
-
+        <dependency>
+		    <groupId>org.springframework</groupId>
+		    <artifactId>spring-core</artifactId>
+		</dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
@@ -102,6 +198,18 @@
                     <artifactId>lettuce-core</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.1.3</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.httpcomponents.client5/httpclient5-fluent -->
+        <dependency>
+        <groupId>org.apache.httpcomponents.client5</groupId>
+        <artifactId>httpclient5-fluent</artifactId>
+        <version>5.1.3</version>
         </dependency>
 
         <dependency>
@@ -124,6 +232,10 @@
                 <exclusion>
                     <artifactId>protobuf-java</artifactId>
                     <groupId>com.google.protobuf</groupId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-java-util</artifactId>
                 </exclusion>
                     <exclusion>
                         <artifactId>grpc-api</artifactId>
@@ -155,11 +267,15 @@
                     </exclusion>
             </exclusions>
         </dependency>
-
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.0.0-jre</version>
+        </dependency>
         <dependency>
             <artifactId>protobuf-java</artifactId>
             <groupId>com.google.protobuf</groupId>
-            <version>3.20.3</version>
+            <version>3.19.6</version>
         </dependency>
 
         <dependency>
@@ -169,9 +285,13 @@
                     <artifactId>protobuf-java</artifactId>
                     <groupId>com.google.protobuf</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>guava</artifactId>
+                    <groupId>com.google.guava</groupId>
+                </exclusion>
             </exclusions>
             <groupId>com.google.protobuf</groupId>
-            <version>3.17.2</version>
+            <version>3.19.6</version>
         </dependency>
 
         <dependency>
@@ -214,12 +334,25 @@
                     <artifactId>snakeyaml</artifactId>
                     <groupId>org.yaml</groupId>
                 </exclusion>
+                <exclusion>
+                     <groupId>com.fasterxml.jackson.dataformat</groupId>
+		    		 <artifactId>jackson-dataformat-yaml</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.squareup.okio</groupId>
+                    <artifactId>okio</artifactId>
+                </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.squareup.okio</groupId>
+            <artifactId>okio</artifactId>
+            <version>1.17.6</version>
         </dependency>
         <dependency>
             <artifactId>snakeyaml</artifactId>
             <groupId>org.yaml</groupId>
-            <version>1.32</version>
+            <version>2.0</version>
         </dependency>
 
         <dependency>
@@ -229,9 +362,9 @@
         </dependency>
 
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>8.0.28</version>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>8.2.0</version>
         </dependency>
 
         <dependency>
@@ -243,7 +376,7 @@
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
-            <version>3.21.0.1</version>
+            <version>3.41.2.2</version>
         </dependency>
 
         <dependency>
@@ -271,7 +404,7 @@
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
-            <version>5.7.7</version>
+            <version>5.8.18</version>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
@@ -282,7 +415,7 @@
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-boot-starter</artifactId>
-            <version>3.5.0</version>
+            <version>3.5.3.1</version>
         </dependency>
 
         <dependency>

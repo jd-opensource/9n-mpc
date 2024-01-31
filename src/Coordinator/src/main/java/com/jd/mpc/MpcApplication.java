@@ -23,7 +23,6 @@ import static org.springframework.core.env.StandardEnvironment.SYSTEM_PROPERTIES
 @SpringBootApplication
 @MapperScan("com.jd.mpc.mapper")
 @EnableRetry
-@EnableZeebeClient
 @NacosPropertySource(dataId = "${nacos.config.data-id}", groupId = "${nacos.config.group}", autoRefreshed = true, first = true)
 public class MpcApplication {
 

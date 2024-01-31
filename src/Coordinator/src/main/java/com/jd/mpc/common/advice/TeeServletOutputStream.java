@@ -1,10 +1,10 @@
 package com.jd.mpc.common.advice;
 
 
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.WriteListener;
 import org.apache.commons.io.output.TeeOutputStream;
 
-import javax.servlet.ServletOutputStream;
-import javax.servlet.WriteListener;
 import java.io.IOException;
 import java.io.OutputStream;
 

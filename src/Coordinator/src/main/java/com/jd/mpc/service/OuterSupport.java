@@ -18,6 +18,7 @@ import com.jd.mpc.domain.form.EsQueryForm;
 import com.jd.mpc.domain.param.ExistParam;
 import com.jd.mpc.domain.vo.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import org.apache.commons.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -31,7 +32,6 @@ import com.jd.mpc.redis.RedisService;
 import io.fabric8.kubernetes.api.model.Pod;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
-import sun.misc.BASE64Encoder;
 
 /**
  * 
@@ -452,10 +452,9 @@ public class OuterSupport {
         log.info("获取日志url:" + url + ",body:" + JSON.toJSONString(esQueryForm));
         String input = esUser + ":" + esPassword;
         log.warn("esUser: " + esUser + ", esPassword: " + esPassword);
-        BASE64Encoder base = new BASE64Encoder();
         String encodedPassword = null;
         try {
-            encodedPassword = base.encode(input.getBytes("UTF-8"));
+            encodedPassword = Base64.encodeBase64String(input.getBytes("UTF-8"));
         } catch (Exception e) {
             log.error("encodedPassword 编码错误");
         }

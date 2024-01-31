@@ -51,7 +51,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class RedisServer implements ApplicationRunner {
 
-    @Resource
+    @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
     @Value("${grpc.server.port}")
@@ -84,96 +84,6 @@ public class RedisServer implements ApplicationRunner {
         stringRedisTemplate.opsForValue().set("coordinator-portal-pk",
                 nodeIp + ":" + nodePort);
         log.info("grpc host:port = {}:{}", nodeIp, nodePort);
-    }
-
-    /**
-     * 初始化CA证书
-     * 
-     * @throws NoSuchAlgorithmException
-     * @throws OperatorCreationException
-     * @throws CertificateException
-     * @throws InvalidKeySpecException
-     * @throws IOException
-     */
-    public void genCACert() throws NoSuchAlgorithmException, OperatorCreationException,
-            CertificateException, InvalidKeySpecException, IOException,
-            InvalidAlgorithmParameterException, NoSuchProviderException {
-        KeyPairPojo keyPairPojo = KeyGenerator.genRSAKeyPair();
-        Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.YEAR, -1);
-        Date before = calendar.getTime();
-        calendar.add(Calendar.YEAR, 11);
-        Date after = calendar.getTime();
-        System.out.println(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(before));
-        System.out.println(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(after));
-        String cert = CertGenerator.issueCACert(before, after, keyPairPojo);
-        CertInfo certInfo = new CertInfo();
-        certInfo.setCertContent(cert);
-        certInfo.setCreateAt(LocalDateTime.now());
-        certInfo.setUpdateAt(LocalDateTime.now());
-        certInfo.setIsDeleted(IsDeletedEnum.FALSE.getStatus());
-        certInfo.setIsRoot(IsRootEnum.TRUE.getStatus());
-        certInfo.setModulus(keyPairPojo.getModulus());
-        certInfo.setPrivateExponent(keyPairPojo.getPrivateExponent());
-        certInfo.setPublicExponent(keyPairPojo.getPublicExponent());
-        int replace = certPersistenceService.replace(certInfo);
-        // System.out.println("$$$$$$$$$$$ replace:"+replace);
-        log.info("CA privateStr:\n" + keyPairPojo.getPrivateExponent() + "\npublicStr:\n"
-                + keyPairPojo.getPublicExponent());
-    }
-
-    /**
-     * 初始化用户证书
-     * 
-     * @throws NoSuchAlgorithmException
-     * @throws InvalidKeySpecException
-     * @throws IOException
-     * @throws OperatorCreationException
-     * @throws CertificateException
-     * @throws InvalidKeyException
-     */
-    public void genUserCert(String name) throws NoSuchAlgorithmException, InvalidKeySpecException,
-            IOException, OperatorCreationException, CertificateException, InvalidKeyException,
-            InvalidAlgorithmParameterException, NoSuchProviderException {
-        KeyPairPojo userKeyPairPojo = KeyGenerator.genRSAKeyPair();
-        PrivateKey userPrivateKey = KeyGenerator
-                .getPrivateKey(userKeyPairPojo.getPrivateExponent());
-        PublicKey userPublicKey = KeyGenerator.getPublicKey(userKeyPairPojo.getPublicExponent());
-        X500Name reqName = CertGenerator.getX500Name(name, name, "BeiJing", "BeiJing", "CN", "JDR");
-        // X500Name reqName = CertGenerator.getX500Name("T02", "T02", "BeiJing", "BeiJing", "CN",
-        // "JDR");
-        // X500Name reqName = CertGenerator.getX500Name("T01", "T01", "BeiJing", "BeiJing", "CN",
-        // "JDR");
-        // X500Name reqName = CertGenerator.getX500Name("TJD", "TJD", "BeiJing", "BeiJing", "CN",
-        // "JDR");
-        String csr = CSRUtil.csrBuilder(reqName, userPublicKey, userPrivateKey);
-        Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.YEAR, -1);
-        Date before = calendar.getTime();
-        calendar.add(Calendar.YEAR, 11);
-        Date after = calendar.getTime();
-        System.out.println(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(before));
-        System.out.println(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(after));
-        CertInfo rootCert = certPersistenceService.queryRootCert();
-        KeyPairPojo rootKeyPairPojo = new KeyPairPojo(
-                tdeService.decryptString(rootCert.getPublicExponent()),
-                tdeService.decryptString(rootCert.getPrivateExponent()),
-                tdeService.decryptString(rootCert.getModulus()));
-        String cert = CertGenerator.issueUserCert(csr, before, after, rootKeyPairPojo);
-        CertInfo certInfo = new CertInfo();
-        certInfo.setCertContent(cert);
-        certInfo.setCreateAt(LocalDateTime.now());
-        certInfo.setUpdateAt(LocalDateTime.now());
-        certInfo.setIsDeleted(IsDeletedEnum.FALSE.getStatus());
-        certInfo.setIsRoot(IsRootEnum.FALSE.getStatus());
-        certInfo.setModulus(userKeyPairPojo.getModulus());
-        certInfo.setPrivateExponent(userKeyPairPojo.getPrivateExponent());
-        certInfo.setPublicExponent(userKeyPairPojo.getPublicExponent());
-        int replace = certPersistenceService.replace(certInfo);
-        // System.out.println("$$$$$$$$$$$ replace:"+replace);
-        log.info("nginxCert:" + name + "\ncert:\n" + cert + "\nprivateStr:\n"
-                + userKeyPairPojo.getPrivateExponent() + "\npublicStr:\n"
-                + userKeyPairPojo.getPublicExponent());
     }
 
 }

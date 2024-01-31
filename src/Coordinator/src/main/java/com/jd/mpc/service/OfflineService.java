@@ -203,7 +203,6 @@ public class OfflineService {
         log.info(GsonUtil.createGsonString(taskMap));
         Set<String> targetSet = taskMap.keySet();
         if(!preJob.getIsCustomer()) {
-            // 添加发起方签名和证书 update by yezhenyue on 20220402 如果是京腾这种对侧为自己的coordinator 下面一步同步任务取消
             Map<String, SignCertVo> signCertVoMap = jobCertValidateService.genJobSignBatch(taskMap);
             if (signCertVoMap == null) {
                 log.error("commitTask 给任务添加签名发生异常！");

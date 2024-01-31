@@ -39,7 +39,7 @@ RUN set -ex && \
     pip3 install pyarrow && \
     pip3 install grpcio-tools && \
     pip3 install pyOpenSSL && \
-    pip3 install pandas && \
+    pip3 install pandas==2.1.4 && \
     pip3 install redis
 
 RUN set -ex && \
@@ -71,5 +71,6 @@ WORKDIR /App/
 RUN chmod 777 ./start.sh
 
 ENV RAY_DEDUP_LOGS=0
+ENV RAY_OBJECT_STORE_ALLOW_SLOW_STORAGE=1
 
 ENTRYPOINT [ "/App/start.sh" ]

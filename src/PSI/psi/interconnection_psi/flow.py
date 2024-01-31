@@ -79,7 +79,7 @@ def calcucipher_and_send(array, batch, ctx, lctx):
 
 def recv_and_calcu(ctx, lctx, prcess):
     done = False
-    while done != True:
+    while not done:
         protomsg = lctx_recv_proto(lctx, ecdh_psi_pb2.EcdhPsiCipherBatch)
         if protomsg.is_last_batch:
             done = True

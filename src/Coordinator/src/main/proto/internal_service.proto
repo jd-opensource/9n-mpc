@@ -1,0 +1,87 @@
+syntax = "proto3";
+option java_package = "jdfl";
+package jdfl;
+
+/****internal****/
+enum AppStatus {
+  CREATE = 0;
+  SHUTDOWN = 1;
+  FINISH = 2;
+}
+
+enum Role {
+    FOLLOWER = 0;
+    LEADER = 1;
+}
+
+message ConfInfo {
+  string AppID = 1;
+  string model_uri = 2;
+  string version = 3;
+  int32 worker_num = 4;
+  int32 datacentor_num = 5;
+  string data_source_name = 6;
+  string train_data_start = 7;
+  string train_data_end = 8;
+  int32 data_num_epoch = 9;
+  string git_url = 10;
+  string branch = 11;
+  Role role = 12;
+  AppStatus local_status = 13;
+  AppStatus remote_status = 14;
+  string flconf = 15;
+  string k8s_conf_string = 16;
+  string idle_timeout = 17;
+  string erp = 18;
+}
+
+message ServicePair {
+  string local_uuid = 1;
+  string remote_uuid = 2;
+}
+
+message PairInfo {
+  string ip_port = 1;
+  repeated ServicePair service_pair = 2;
+}
+
+message AppInfo {
+  ConfInfo conf_info = 1;
+  repeated PairInfo pair_infos = 2;
+}
+
+/****registered****/
+service PairService {
+  rpc RegisterUUID(Request) returns (Status);
+  rpc GetPairInfo(Request) returns (PairInfoResponse);
+}
+
+message Status {
+  uint32 status = 1;  // 0:success, not 0:fail
+  string err_msg = 2;
+}
+
+message Request {
+  repeated string uuid = 1;  // AppID_Service_index
+  string ip_port = 2;        // ip:port
+}
+
+message PairInfoResponse {
+  Status status = 1;
+  repeated ServicePair service_pair = 2;
+}
+
+message JoinResponse {
+  uint64 project_id = 1;           // project id, only valid at local
+  Status status = 2;
+ // JoinStatus join_status = 3;      // join request result
+}
+
+/****leader start training****/
+service StartApplication {
+  rpc StartApplication(ModelURI) returns (Status);
+}
+message ModelURI {
+  string model_uri = 1;
+  string version = 2;
+}

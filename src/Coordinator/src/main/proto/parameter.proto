@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+import "table.proto";
+package app;
+
+//option go_package = "coding.jd.com/mpc/jasmine/models/pb";
+option java_multiple_files = true;
+option java_package = "online";
+
+message TaskInfo {
+    string TaskID = 1;
+    string JobID = 2;
+    string Target = 3;
+    int32 Party = 4;
+}
+
+message LoadCSVColumn {
+    string Name = 1;
+    database.ColumnType Type = 2;
+    string Default = 3;
+}
+
+message LoadCSVParameter {
+    string InFile = 1;
+    string OutTable = 2;
+    repeated LoadCSVColumn Columns = 3;
+    string Seperator = 4;
+    bool WithoutHeader = 5;
+}
+
+message ExportCSVParameter {
+    string InTable = 1;
+    string OutFile = 2;
+    string Seperator = 3;
+    bool WithoutHeader = 4;
+}
+
+message ShareTableParameter {
+    int32 owner = 1;
+    string ClearTable = 2;
+    string SharedTable = 3;
+}
+
+message ColMap {
+    string Origin = 1;
+    string New = 2;
+}
+
+message JoinParameter {
+    string LeftTable = 1;
+    int32 LeftJoinCol = 2;
+    string RightTable = 3;
+    int32 RightJoinCol = 4;
+    string OutTable = 5;
+
+    enum JoinType {
+        Inner = 0;
+        Full = 1;
+        Left = 2;
+        Right = 3;
+        Diff = 4;
+    }
+    JoinType Join = 6;
+}
+
+message FilterParameter {
+    string InTable = 1;
+    string OutTable = 2;
+    int32 LeftCol = 3;
+    enum FilterCondition {
+        EQ = 0;
+        NEQ = 1;
+        GT = 2;
+        LT = 3;
+        GE = 4;
+        LE = 5;
+    }
+    FilterCondition Relation = 4;
+    int32 RightCol = 5;
+    int64 Scalar = 6;
+    string RefStr = 7;
+}
+
+message AggregateParameter {
+    string InTable = 1;
+    string OutTable = 2;
+    int32 Col = 3;
+    int32 GroupbyCol = 4;
+    string GroupbyRefTable = 5;
+
+    enum AggregateType {
+        Sum = 0;
+        Count = 1;
+    }
+    AggregateType Type = 6;
+}
+
+message RevealTableParameter {
+    int32 Target = 1;
+    string InTable = 2;
+    string OutTable = 3;
+}
+
+message ConcatColsParameter {
+    string InTable1 = 1;
+    string InTable2 = 2;
+    string OutTable = 3;
+}
+
+message ConcatParameter {
+    string InTable1 = 1;
+    string InTable2 = 2;
+    string OutTable = 3;
+}
+
+message SelectParameter {
+    string InTable = 1;
+    string OutTable = 2;
+    repeated int32 Cols = 3;
+}
+
+message CreateColParameter {
+    string InTable = 1;
+    string OutTable = 2;
+    string ColName = 3;
+    repeated int32 Operands = 4;
+    enum Operator {
+        SetIntZero = 0;
+        SetIntOne = 1;
+        Add = 2;
+        Sub = 3;
+        Mul = 4;
+
+        And = 5;
+        Or = 6;
+        Not = 7;
+        Xor = 8;
+
+        GT = 9;
+        GE = 10;
+        EQ = 11;
+        LT = 12;
+        LE = 13;
+    }
+    Operator Op = 5;
+    int64 Scalar = 6;
+}
+
+message DeleteTablesParameter { repeated string Tables = 1; }
+
+message HandshakeRequest { int64 Operation = 1; }
+
+message HandshakeReply { int64 Operation = 1; }
+
+message LoadDataParameter {
+    string Name = 1;
+    repeated APIDataColumn Columns = 2;
+}
+
+message APIDataColumn {
+    message ColumnValue {
+        oneof DataOneof {
+            bytes BytesData = 1;
+            int64 IntData = 2;
+            int32 BoolData = 3;
+        }
+    }
+
+    string Name = 1;
+    database.ColumnType Type = 2;
+    string Default = 3;
+    repeated ColumnValue Values = 4;
+}
+
+message ExportDataParameter { string InTable = 1; }
+
+message ExportedData {
+    string InTable = 1;
+    repeated APIDataColumn Columns = 2;
+}

@@ -21,52 +21,60 @@
     <th>硬件需求</th>
     <th>镜像</th>
     <th>提供方</th>
+    <th>基础镜像</th>
   </tr>
   <tr>
     <td>redis</td>
     <td>0.5c1g</td>
     <td>tianwen3/redis:v3.0</td>
-    <td>公开</td>
+    <td>dockerhub</td>
+    <td>redis:latest  redis版本7.0.5</td>
   </tr>
   <tr>
     <td>mysql</td>
     <td>0.5c1g</td>
     <td>mysql_debian_8.0.31</td>
-    <td>公开</td>
-  </tr>
-  <tr>
-    <td>fileservice</td>
-    <td>1c4g</td>
-    <td>fileservice0.7-opensource</td>
-    <td>JD</td>
+    <td>dockerhub</td>
+    <td>-</td>
   </tr>
   <tr>
     <td>proxy</td>
     <td>1c2g</td>
     <td>tianwen3/proxy:v4.1</td>
-    <td>公开</td>
+    <td>dockerhub</td>
+    <td>ubuntu:22.04</td>
   </tr>
  <tr>
     <td>nacos</td>
     <td>2c4g</td>
     <td>nacos/nacos-server:v2.2.3</td>
-    <td>公开</td>
+    <td>dockerhub</td>
+    <td>-</td>
+  </tr>
+  <tr>
+    <td>fileservice</td>
+    <td>1c4g</td>
+    <td>fileservice0.7-opensource</td>
+    <td>自主生成</td>
+    <td>-</td>
   </tr>
   <tr>
     <td>coordinator</td>
     <td>4c8g</td>
     <td>coordinator-opensource</td>
-    <td>JD</td>
+    <td>自主生成</td>
+    <td>-</td>
   </tr>
   <tr>
     <td>psi</td>
     <td>4c16g</td>
     <td>psi-opensource</td>
-    <td>JD</td>
+    <td>自主生成</td>
+    <td>-</td>
   </tr>
 </table>
 
-以上组件需要按顺序部署。
+以上组件需要按顺序部署，其中proxy，psi，redis是用于执行隐私求交所需的必须镜像，nacos、mysql、coordinator是用于接入京东平台所需。
 
 ## 3 预定操作
 - 创建K8S namespace，建议格式NAMESPACE=“mpc-$COMPANY-cu”

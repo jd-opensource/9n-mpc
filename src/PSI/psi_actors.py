@@ -15,12 +15,6 @@
 # limitations under the License.
 
 from ray.data import Dataset
-from ray.data.block import (
-    _validate_key_fn,
-    KeyFn)
-from ray.data._internal.sort import SimpleSortOp
-from ray.data._internal.block_list import BlockList
-from ray.data._internal.plan import AllToAllStage
 import os
 import ray
 import argparse
@@ -36,8 +30,10 @@ import zlib
 import json
 import struct
 from pyarrow.dataset import dataset
-#from workerAuth.authClient import AuthClient
-
+import numpy as np
+from ray.data.context import DatasetContext
+import time
+import ray._private.ray_constants as ray_constants
 
 def init_logging(app_id, level=logging.INFO, logdir='/mnt/logs', platform_id='9n-mpc', filename='run.log', catch_tf=False, custom_node_id=None):
     """
@@ -153,8 +149,7 @@ def read_data_from_filesystem(file_system, file_path: str, with_head: bool, usin
 
         if using_ray:
             table_dataset = ray.data.read_csv(
-                file_path, filesystem=file_system, parse_options=parse_options)
-            table_dataset._lazy = False
+                file_path,  filesystem=file_system, parse_options=parse_options)
         else:
             table_dataset = csv.read_csv(file_system.open_input_stream(
                 file_path), parse_options=parse_options)
@@ -191,6 +186,18 @@ def write_data_to_filesystem(file_system, data, file_path: str, append: bool, wi
     else:
         raise ValueError(f"not support data format {infered_format}")
 
+
+def get_data_size(url: str):
+    import pyarrow.fs as pafs
+    if "://" not in url:
+        fs = pafs.LocalFileSystem()
+        info = fs.get_file_info(url)
+    else:
+        fs, path = pafs.FileSystem.from_uri(url)
+        info = fs.get_file_info(path)
+
+    size = info.size if info.type == pafs.FileType.File else None
+    return size
 
 def read_data_from_hdfs(data_format: str, abs_file_path: str, with_head: bool, using_ray: bool = False, csv_delimiter: str = ",") -> pa.Table:
     """
@@ -386,116 +393,86 @@ def add_hash_column(df: pa.Table, hashed_column_name: str, to_hash_column_name: 
 
     return df.add_column(0, hashed_column_name, pa.array(hashed_id, type=pa.binary()))
 
-
-# following are copied from ray_utils.py
-
-
-def sort_impl_with_boundaries(
-    blocks: BlockList, clear_input_blocks: bool, key, boundaries: list = None, descending: bool = False
-) -> Tuple[BlockList, dict]:
-    stage_info = {}
-    blocks_list = blocks.get_blocks()
-    if len(blocks_list) == 0:
-        return BlockList([], []), stage_info
-
-    if isinstance(key, str):
-        key = [(key, "descending" if descending else "ascending")]
-
-    if isinstance(key, list):
-        descending = key[0][1] == "descending"
-
-    # Use same number of output partitions.
-    num_reducers = len(boundaries) + 1
-    # TODO(swang): sample_boundaries could be fused with a previous stage.
-    if descending:
-        boundaries.reverse()
-    sort_op_cls = SimpleSortOp
-    sort_op = sort_op_cls(
-        map_args=[boundaries, key, descending], reduce_args=[key, descending]
-    )
-    return sort_op.execute(
-        blocks,
-        num_reducers,
-        clear_input_blocks,
-    )
-
-
-class SortWithBoundariesStage(AllToAllStage):
-    """Implementation of `Dataset.sort()`."""
-
-    def __init__(self, ds: "Dataset", key: Optional[KeyFn],  boundaries: list, descending: bool):
-        def do_sort_with_boundaries(block_list, clear_input_blocks: bool, *_):
-            # Handle empty dataset.
-            if block_list.initial_num_blocks() == 0:
-                return block_list, {}
-            if clear_input_blocks:
-                blocks = block_list.copy()
-                block_list.clear()
-            else:
-                blocks = block_list
-            if isinstance(key, list):
-                if not key:
-                    raise ValueError("`key` must be a list of non-zero length")
-                for subkey in key:
-                    _validate_key_fn(ds, subkey)
-            else:
-                _validate_key_fn(ds, key)
-            return sort_impl_with_boundaries(blocks, clear_input_blocks, key, boundaries, descending)
-
-        super().__init__("sort_with_boundaries", None, do_sort_with_boundaries)
-
-
-def repartition_by_key_value(ds, key, boundaries, descending=False):
-    plan = ds._plan.with_stage(
-        SortWithBoundariesStage(ds, key, boundaries, descending))
-    return Dataset(plan, ds._epoch, ds._lazy)
-# above are copied from ray_utils.py
-
-
-def repartition_by_hash(dataTable, example_id_name: str, partition_num: int, hashed_mod_column_name: str, hashed_column_name: str) -> List[ray.types.ObjectRef[pa.Table]]:
-    """
-    """
-    dataTable = add_hash_column(dataTable, hashed_column_name=hashed_column_name, to_hash_column_name=example_id_name,
-                                hashed_mod_column_name=hashed_mod_column_name, hashed_mod_n=partition_num)
-    logging.info(f"repartition_by_hash add_hash_column ended {example_id_name} {partition_num}")
-
-    ds = ray.data.from_arrow(dataTable)
-    ds = repartition_by_key_value(ds, key=hashed_mod_column_name, boundaries=list(
-        range(1, partition_num)), descending=False)
-    ds._lazy = False
-    logging.info(f"repartition_by_hash repartition_by_key_value ended {example_id_name} {partition_num}")
-    return ds.to_arrow_refs()
-
-
 def repartition_for_existed_data(data_protocol: str, data_format: str, file_path: str, with_head: bool,
-                                 example_id_name: str, data_block_count: int, csv_delimiter: str = ","):
+                                    example_id_name: str, data_block_count: int, csv_delimiter: str = ",", parallel: int = 2):
     """
     """
     logging.info(f"enter repartition_for_existed_data {data_format} {file_path}")
     if data_protocol == 'hdfs':
-        dataTable = read_data_from_hdfs(
-            data_format, file_path, with_head, False, csv_delimiter=csv_delimiter)
+        dataset = read_data_from_hdfs(
+            data_format, file_path, with_head, True, csv_delimiter=csv_delimiter)
     elif data_protocol == 'nfs':
-        dataTable = read_data_from_file(
-            data_format, file_path, with_head, False, csv_delimiter=csv_delimiter)
+        dataset = read_data_from_file(
+            data_format, file_path, with_head, True, csv_delimiter=csv_delimiter)
     else:
         raise ValueError("can not support repartition for single file")
 
     logging.info(f"repartition_for_existed_data data read all {data_format} {file_path}")
 
     real_example_id_name = get_actual_column_name(
-        dataTable, example_id_name, 0)
+        dataset, example_id_name, 0)
     
-    dataTable = PsiPirActor._convert_string_to_large_string(dataTable)
+    @ray.remote
+    class FileWriter:
+        def __init__(self, names, enmpty_batch) -> None:
+            self.names = names
+            for name in self.names:
+                write_data_to_file(enmpty_batch, name, append=True,
+                               with_head=with_head, csv_delimiter=csv_delimiter)
 
-    data_blocks = repartition_by_hash(dataTable, example_id_name=real_example_id_name,
-                                      partition_num=data_block_count,
-                                      hashed_mod_column_name=STATIC_HASHED_MOD_VALUE_COLUMN_NAMES,
-                                      hashed_column_name=STATIC_HASHED_VALUE_COLUMN_NAMES)
+        def write(self,batch):
+            write_data_to_file(batch[0], self.names[batch[1]], append=True,
+                               with_head=False, csv_delimiter=csv_delimiter)
 
-    logging.info(f"repartition_for_existed_data {data_blocks} {data_blocks[0]}")
-    return data_blocks
+    bucket_files = [f"/tmp/bucket-{i}" for i in range(data_block_count)]
+    enmpty_batch = pa.RecordBatch.from_arrays(
+                    [pa.array([], type=typ) for typ in dataset.schema().types],
+                    schema=dataset.schema().base_schema
+                    )
+    
+    bucket_files_split = np.array_split(bucket_files, parallel)
+    bucket_writers = [FileWriter.remote(bucket_files_split[i], enmpty_batch) for i in range(parallel)]
+    boundaries = np.cumsum([len(sub_arr) for sub_arr in bucket_files_split])
+    class hash_split:
+        def __init__(self):
+            pass
 
+        def __call__(self,batch):
+            batch = add_hash_column(
+                batch, hashed_column_name=STATIC_HASHED_VALUE_COLUMN_NAMES, to_hash_column_name=real_example_id_name)
+
+            hash_mod_n = np.array([int(bytes.hex(value.as_py()), 16) %
+                                data_block_count for value in batch.column(STATIC_HASHED_VALUE_COLUMN_NAMES)])
+            batch = batch.drop([STATIC_HASHED_VALUE_COLUMN_NAMES])
+            sp_batchs = [batch.filter(pa.array(hash_mod_n == i))
+                        for i in range(data_block_count)]
+
+            for i, sp_batch in enumerate(sp_batchs):
+                sub_array_index = np.where(boundaries > i)[0][0]
+                new_index = i - (0 if sub_array_index == 0 else boundaries[sub_array_index - 1])
+                ray.get(bucket_writers[sub_array_index].write.remote((sp_batch, new_index)))
+
+            return pa.table({})
+
+    logging.info("parallel require:{} Available Source:{}".format(parallel, ray.available_resources()))
+    nouse = dataset.map_batches(
+        hash_split,
+        batch_size=1000_000,
+        batch_format="pyarrow",
+        concurrency=(1,parallel),
+        zero_copy_batch=True,
+    )
+
+    del dataset
+    nouse.take()
+    del nouse
+
+    for bucket_writer in bucket_writers:
+        ray.kill(bucket_writer, no_restart=True)
+
+    logging.info(f"repartition_for_existed_data {bucket_files} {bucket_files[0]}")
+
+    return bucket_files
 
 def has_column_by_name(data, column_name: str):
     """
@@ -838,7 +815,7 @@ class PsiPirActor:
 
     def __init__(self, actor_index: int, dispatch_actor: BlockDispatchActor, example_id_name: Union[str, int],
                  with_head: bool, join_type: JoinType, role: RoleType, data_type: str, app_id: str,
-                 local_address: int, proxy_address: str, local_domain: str, remote_domain: str, redis_addr: str = "", redis_pwd: str = "") -> None:
+                 local_address: int, proxy_address: str, local_domain: str, remote_domain: str, redis_addr: str = "", redis_pwd: str = "", engine:str = "ecdh") -> None:
         """
         """
         #
@@ -869,6 +846,8 @@ class PsiPirActor:
         self.redis_addr = redis_addr
         #
         self.redis_pwd = redis_pwd
+
+        self.engine = engine
         init_logging(app_id=self.app_id,
                      custom_node_id=f"worker-{actor_index}")
 
@@ -879,10 +858,6 @@ class PsiPirActor:
         self._sync_block_status(block_id, BlockStatus.PROCSSING, None, None)
         recTableData, real_example_id_name = self._read_block_data(
             data_protocol, data_format, block_data, csv_delimiter)
-        # if recTableData.num_rows <= 0 or recTableData.num_columns <= 0:
-        #     self._sync_block_status(
-        #         block_id, BlockStatus.PROCESSED, (0, 0, 0), (0, 0, 0))
-        #     return (self.actor_index, block_id, None)
 
         # generate empty result
         recBatchOutSchema = recTableData.schema
@@ -906,7 +881,6 @@ class PsiPirActor:
             recBatchIn = emptyRecBatchOut
         else:
             recBatchIn = recTableDataBatches[0]
-        # recBatchIn = recTableData.to_batches()[0]
         logging.info(f"****do_action begin actual do block_id={block_id} actor_index={self.actor_index}"
                      f" join_type={self.join_type} original_data_status={original_data_status} rows={recBatchIn.num_rows}")
         if self.join_type == JoinType.PSI:
@@ -939,37 +913,76 @@ class PsiPirActor:
         self._sync_block_status(
             block_id, BlockStatus.PROCESSED, original_data_status, joined_data_status)
         logging.info(f"do_action end block_id={block_id} actor_index={self.actor_index}")
+                
         return (self.actor_index, block_id, recBatchOut_ref)
 
     def _do_psi(self, block_id: int, block_data: pa.RecordBatch) -> pa.RecordBatch:
         """
         """
-        from interconnection_psi.api import psi_receiver, psi_sender
-        local_address = self.local_address
-        task_id = '{}_{}'.format(self.app_id, block_id)
-        if self.role == RoleType.SENDER:
-            out_table = psi_sender(psi_in=block_data, task_id=task_id,
-                                   local_address=local_address, remote_address=self.proxy_address,
-                                   self_domain=self.local_domain, target_domain=self.remote_domain,
-                                   redis_address=self.redis_addr, redis_password=self.redis_pwd,
-                                   send_back=True)
+        if self.engine == "ecdh":
+            from interconnection_psi.api import psi_receiver, psi_sender
+            local_address = self.local_address
+            task_id = '{}_{}'.format(self.app_id, block_id)
+            if self.role == RoleType.SENDER:
+                out_table = psi_sender(psi_in=block_data, task_id=task_id,
+                                    local_address=local_address, remote_address=self.proxy_address,
+                                    self_domain=self.local_domain, target_domain=self.remote_domain,
+                                    redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                    send_back=True)
+            else:
+                out_table = psi_receiver(psi_in=block_data, task_id=task_id,
+                                        local_address=local_address, remote_address=self.proxy_address,
+                                        self_domain=self.local_domain, target_domain=self.remote_domain,
+                                        redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                        send_back=True)
         else:
-            out_table = psi_receiver(psi_in=block_data, task_id=task_id,
-                                     local_address=local_address, remote_address=self.proxy_address,
-                                     self_domain=self.local_domain, target_domain=self.remote_domain,
-                                     redis_address=self.redis_addr, redis_password=self.redis_pwd,
-                                     send_back=True)
+            import pyraypsi
+            local_address = self.local_address
+            task_id = '{}_{}'.format(self.app_id, block_id)
+            if self.role == RoleType.SENDER:
+                out_table = pyraypsi.psi_sender(psi_in=block_data, task_id=task_id,
+                                    local_address=local_address, remote_address=self.proxy_address,
+                                    self_domain=self.local_domain, target_domain=self.remote_domain,
+                                    redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                    send_back=True, mult_type=1, malicious=True)
+            else:
+                out_table = pyraypsi.psi_receiver(psi_in=block_data, task_id=task_id,
+                                    local_address=local_address, remote_address=self.proxy_address,
+                                    self_domain=self.local_domain, target_domain=self.remote_domain,
+                                    redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                    send_back=True, mult_type=1, malicious=True)
+
         return out_table
 
     def _do_pir(self, block_id: int, block_data: pa.RecordBatch) -> pa.RecordBatch:
         """
         """
-        raise Exception("Not Support")
+        import pyraypsi
+        local_address = self.local_address
+        task_id = '{}_{}'.format(self.app_id, block_id)
+
+        logging.info(f"local_address={local_address} remote_address={self.proxy_address}"
+                     f" self_domain={self.local_domain} target_domain={self.remote_domain} task_id={task_id}")
+        if self.role == RoleType.SENDER:
+            out_table = pyraypsi.pir_sender(pir_in=block_data, task_id=task_id,
+                                local_address=local_address, remote_address=self.proxy_address,
+                                self_domain=self.local_domain, target_domain=self.remote_domain,
+                                redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                mult_type=1, malicious=True)
+        else:
+             out_table = pyraypsi.pir_receiver(pir_in=block_data, task_id=task_id,
+                                local_address=local_address, remote_address=self.proxy_address,
+                                self_domain=self.local_domain, target_domain=self.remote_domain,
+                                redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                mult_type=1, malicious=True)
+             
+        return out_table
 
     def _read_block_data(self, data_protocol: str, data_format: str, block_data, csv_delimiter: str = ",") -> pa.Table:
         """
         """
         if isinstance(block_data, str):
+            data_protocol = infer_protocol(block_data)
             # read block data
             if data_protocol == 'hdfs':
                 data = read_data_from_hdfs(
@@ -984,6 +997,7 @@ class PsiPirActor:
         elif isinstance(block_data, list):
             if len(block_data) > 0:
                 for i, sub_block_data in enumerate(block_data):
+                    data_protocol = infer_protocol(sub_block_data)
                     if data_protocol == 'hdfs':
                         sub_data = read_data_from_hdfs(
                             data_format, sub_block_data, self.with_head, False, csv_delimiter)
@@ -1000,9 +1014,14 @@ class PsiPirActor:
             data = self._convert_string_to_large_string(data)
         else:
             data = block_data
+            added_columns = 0
+            if STATIC_HASHED_VALUE_COLUMN_NAMES in data.column_names:
+                added_columns += 1
+            if STATIC_HASHED_MOD_VALUE_COLUMN_NAMES in data.column_names:
+                added_columns += 1
             # the data has add mod and hash_values at head
             real_example_name = get_actual_column_name(
-                data, self.example_id_name, 2)
+                data, self.example_id_name, added_columns)
 
         if data.num_rows > 0 and data.num_columns > 0:
             # add hash column
@@ -1149,7 +1168,7 @@ def add_schema_to_all_empty_blocks(blocks):
     return blocks
 
 def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, local_ip: str, local_start_port, remote_proxy_address, bucket_num,
-            role_type, local_domain, remote_domain, redis_addr, redis_pwd, output_dir, max_actors=2, csv_delimiter=",", avg_actor_cpus=1.0):
+            role_type, local_domain, remote_domain, redis_addr, redis_pwd, output_dir, max_actors=2, csv_delimiter=",", avg_actor_cpus=1.0, engine="ecdh"):
     dispatch_actor = BlockDispatchActor.remote(app_id=app_id, data_dir_or_path=data_path, with_head=with_head,
                                                data_block_count_if_file=bucket_num, example_id_name=example_id_name)
     # must wait data initialize complete
@@ -1163,16 +1182,21 @@ def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, loca
 
     # if need partition file first
     if data_type == fs.FileType.File:
+        bt = time.time()
         data_blocks = repartition_for_existed_data(
-            data_protocol, data_format, data_path, with_head, example_id_name, bucket_num, csv_delimiter)
-        data_blocks = add_schema_to_all_empty_blocks(data_blocks)
+            data_protocol, data_format, data_path, with_head, example_id_name, bucket_num, csv_delimiter, max_actors)
+        # data_blocks = add_schema_to_all_empty_blocks(data_blocks)
 
         ray.get(dispatch_actor.update_blocks.remote(data_blocks))
+        logging.info(f"repartition_for_existed_data cost: {time.time()-bt}")
+
+        wait_large_memory_idle_worker_killed()
 
     # adjust
     if data_block_num <= max_actors:
         max_actors = data_block_num
 
+    bt = time.time()
     # PsiPirActor.options(num_cpus=avg_actor_cpus)
     actors = [PsiPirActor.remote(actor_index=i, dispatch_actor=dispatch_actor, example_id_name=example_id_name,
                                  with_head=with_head, join_type=join_type, role=role_type, data_type=data_type,
@@ -1180,7 +1204,7 @@ def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, loca
                                  proxy_address=remote_proxy_address if isinstance(
                                      remote_proxy_address, str) else f"0.0.0.0:{remote_proxy_address+i}",
                                  local_domain=local_domain, remote_domain=remote_domain,
-                                 redis_addr=redis_addr, redis_pwd=redis_pwd
+                                 redis_addr=redis_addr, redis_pwd=redis_pwd, engine=engine,
                                  ) for i in range(max_actors)]
     data_output_refs = [None] * data_block_num
     result_refs = [None]*max_actors
@@ -1218,6 +1242,8 @@ def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, loca
             # if no more jobs to wait
             if not result_refs:
                 break
+    logging.info(f"psi cost: {time.time()-bt}")
+    bt = time.time()
 
     # all data prepared
     if data_type == fs.FileType.File and completed_block_data:
@@ -1227,6 +1253,8 @@ def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, loca
 
     # result reporting
     aggre_results = ray.get(dispatch_actor.get_results.remote())
+    logging.info(f"write result cost: {time.time()-bt}")
+    
     return generate_result(join_type, aggre_results, output_dir)
 
 
@@ -1271,6 +1299,9 @@ def create_argment_parser():
         "--csv-header", help="选择输入的csv文件是否包含header行, 默认为false", type=bool, default=True)
     parser.add_argument("--csv-delimiter", help="CSV文件分隔符",
                         type=str, default=",")
+    parser.add_argument("--engine", help="求交引擎",
+                        type=str, default="ecdh", choices=["ecdh", "rr22"])
+
 
     parser.add_argument("--supplier", help="选择输出的格式")
     parser.add_argument(
@@ -1285,34 +1316,46 @@ def create_argment_parser():
     parser.add_argument("--auth_server", help="防盗版验证服务", default=None)
     return parser
 
+RAY_OBJECT_STORE_MEMORY_PROPORTION = float(os.environ.get("RAY_OBJECT_STORE_MEMORY_PROPORTION", 0.6))
+RAY_OBJECT_STORE_MEMORY_CAN_SAFE_USE_PROPORTION = float(os.environ.get("RAY_OBJECT_STORE_MEMORY_CAN_SAFE_USE_PROPORTION", 0.8))
 
-def check_auth(target, status_server, actual_app_id, auth_server=None):
-    if auth_server is None:
-        auth_server = os.environ.get('AUTH_SERVER')
-    authclient = AuthClient()
-    cluster_id = os.environ.get("CLUSTER_ID")
-    node_id = os.environ.get("NODE_ID")
-    local_domain = os.environ.get("LOCAL_DOMAIN")
-    info = {
-        "random": 0,  # 随机数
-        "timestamp": 0,  # 当前时间戳,精确到秒
-        "workerType": "psi",  # worker类型
-        "workerVersion": "1.0.0",  # worker版本
-        "taskInfo": {
-            "clusterID": cluster_id,
-            "nodeID": node_id,
-            "localDomain": local_domain,  # 发起方domain
-            "remoteDomain": target if target else local_domain,  # 接收方domain
-            "extra": {}  # 任务额外信息
-        }
-    }
-    logging.info("------{}-------".format(info))
-    res = authclient.requestAuth(auth_server, info)
-    if res[0] != True:
-        set_node_status(status_server, actual_app_id, 0, 501,
-                        result="{}, parameter server cannot run, ps authentication failed".format(res[1]))
-        raise Exception(
-            "{}, parameter server cannot run, ps authentication failed".format(res.args[0]))
+def wait_large_memory_idle_worker_killed():
+    time_to_wait = 12
+    wait_interval = 3
+
+    while time_to_wait > 0:
+        if ray.available_resources()['object_store_memory'] > ray.cluster_resources()['object_store_memory'] * RAY_OBJECT_STORE_MEMORY_CAN_SAFE_USE_PROPORTION:
+            return
+        time.sleep(wait_interval)
+        time_to_wait -= wait_interval
+
+def chose_object_store_memory_strategy(input, actual_buckets, n_parallels):
+    size = get_data_size(input)
+
+    if size is None:
+        return None
+    
+    ray.init()
+    resources = ray.available_resources()
+    total_memory = resources["object_store_memory"] + resources["memory"]
+    ray.shutdown()
+    
+    except_storage_memory_size = max(size * 2, total_memory*RAY_OBJECT_STORE_MEMORY_PROPORTION)
+
+    # except_hash_split_memory_size = n_parallels * 
+    # except_writer_actor_memory_size = n_parallels * 
+    # mean_bucket_size = size / actual_buckets
+    # except_psi_memory_size = mean_bucket_size * 5 * n_parallels
+    
+    if except_storage_memory_size > total_memory:
+        raise Exception(f"object store memory {except_storage_memory_size} is not enough")
+
+    logging.info(f"except {except_storage_memory_size} storage memory")
+
+    return except_storage_memory_size
+
+
+
 
 
 if __name__ == "__main__":
@@ -1381,20 +1424,18 @@ if __name__ == "__main__":
         except:
             actual_example_id_name = column_index_or_names[0]
 
-        #
-        # check_auth(args.target, args.status_server,
-        #            actual_app_id, args.auth_server)
-
         # actual doing
+        ray.init(object_store_memory=chose_object_store_memory_strategy(args.input, actual_buckets, n_parallels))
+        logging.info("Total Source:{}".format(ray.cluster_resources()))
         results = run_app(app_id=actual_app_id, join_type=join_type, data_path=args.input, example_id_name=actual_example_id_name,
                           with_head=args.csv_header, local_ip=actual_local_ip, local_start_port=args.proxy_listen, remote_proxy_address=remote_addr,
                           bucket_num=actual_buckets, role_type=role_type, local_domain=local_domain, remote_domain=remote_domain,
                           redis_addr=args.redis_server, redis_pwd=args.redis_password, output_dir=args.output, max_actors=n_parallels,
-                          csv_delimiter=args.csv_delimiter, avg_actor_cpus=avg_parallel_cpus)
+                          csv_delimiter=args.csv_delimiter, avg_actor_cpus=avg_parallel_cpus, engine=args.engine)
 
         logging.info(f"all jobs done results={results}")
         set_node_status(args.status_server, actual_app_id,
                         0, 0, result=json.dumps(results))
     except Exception as e:
-        logging.error(f"error: {e}")
+        logging.error(f"error: {e}", exc_info=True)
         set_node_status(args.status_server, actual_app_id, 0, 500)

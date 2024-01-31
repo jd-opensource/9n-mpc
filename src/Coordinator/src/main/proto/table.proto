@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package database;
+
+//option go_package = "coding.jd.com/mpc/jasmine/models/pb";
+option java_multiple_files = true;
+option java_package = "online";
+
+enum ColumnType {
+    Int = 0;
+    Binary64 = 1;
+    Float = 2;
+    Binary = 3;
+    String = 4;
+    Blake = 5;
+    ClearInt = 6;
+    ClearBinary64 = 7;
+    ClearFloat = 8;
+    ClearBlake = 9;
+    ClearBinary = 10;
+    Valid = 11;
+    PackedBinary = 12;
+    ClearBool = 13;
+    Bool = 14;
+}
+
+message Column {
+    string Name = 1;
+    ColumnType Type = 2;
+    bytes Data = 3;
+}
+
+message Table {
+    int64 Rows = 1;
+    repeated Column Columns = 2;
+}

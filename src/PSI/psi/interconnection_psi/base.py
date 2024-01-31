@@ -25,11 +25,14 @@ class PsiException(Exception):
         return f"{self.error_code.SerializeToString()} {self.error_msg}"
 
 
-def raise_exception(error_code, err_msg, input=[], filedpos=""):
+def raise_exception(error_code, err_msg, input=None, filedpos=""):
     dis = ""
-    for lst in input:
-        lfiled = eval("lst.{}".format(filedpos))
-        dis += "[{}] ".format(str(lfiled))
+    if input is not None:
+        if not isinstance(input, list):
+            input = [input]
+        for lst in input:
+            lfiled = eval("lst.{}".format(filedpos))
+            dis += "[{}] ".format(str(lfiled))
 
     raise PsiException(error_code, f"{err_msg} {dis}")
 

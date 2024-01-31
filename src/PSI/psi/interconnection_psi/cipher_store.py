@@ -47,7 +47,7 @@ class CipherStore():
         batch_index = 0
         is_last_batch = False
 
-        while is_last_batch != True:
+        while not is_last_batch:
             arr = self.peer_cipher.get()
 
             if arr is None:

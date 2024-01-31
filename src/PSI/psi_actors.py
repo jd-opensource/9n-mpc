@@ -30,10 +30,10 @@ import zlib
 import json
 import struct
 from pyarrow.dataset import dataset
-#from workerAuth.authClient import AuthClient
 import numpy as np
 from ray.data.context import DatasetContext
-
+import time
+import ray._private.ray_constants as ray_constants
 
 def init_logging(app_id, level=logging.INFO, logdir='/mnt/logs', platform_id='9n-mpc', filename='run.log', catch_tf=False, custom_node_id=None):
     """
@@ -186,6 +186,18 @@ def write_data_to_filesystem(file_system, data, file_path: str, append: bool, wi
     else:
         raise ValueError(f"not support data format {infered_format}")
 
+
+def get_data_size(url: str):
+    import pyarrow.fs as pafs
+    if "://" not in url:
+        fs = pafs.LocalFileSystem()
+        info = fs.get_file_info(url)
+    else:
+        fs, path = pafs.FileSystem.from_uri(url)
+        info = fs.get_file_info(path)
+
+    size = info.size if info.type == pafs.FileType.File else None
+    return size
 
 def read_data_from_hdfs(data_format: str, abs_file_path: str, with_head: bool, using_ray: bool = False, csv_delimiter: str = ",") -> pa.Table:
     """
@@ -448,11 +460,12 @@ def repartition_for_existed_data(data_protocol: str, data_format: str, file_path
         batch_size=1000_000,
         batch_format="pyarrow",
         concurrency=(1,parallel),
+        zero_copy_batch=True,
     )
 
-    dataset = None
+    del dataset
     nouse.take()
-    nouse = None
+    del nouse
 
     for bucket_writer in bucket_writers:
         ray.kill(bucket_writer, no_restart=True)
@@ -900,6 +913,7 @@ class PsiPirActor:
         self._sync_block_status(
             block_id, BlockStatus.PROCESSED, original_data_status, joined_data_status)
         logging.info(f"do_action end block_id={block_id} actor_index={self.actor_index}")
+                
         return (self.actor_index, block_id, recBatchOut_ref)
 
     def _do_psi(self, block_id: int, block_data: pa.RecordBatch) -> pa.RecordBatch:
@@ -943,7 +957,26 @@ class PsiPirActor:
     def _do_pir(self, block_id: int, block_data: pa.RecordBatch) -> pa.RecordBatch:
         """
         """
-        raise Exception("Not Support")
+        import pyraypsi
+        local_address = self.local_address
+        task_id = '{}_{}'.format(self.app_id, block_id)
+
+        logging.info(f"local_address={local_address} remote_address={self.proxy_address}"
+                     f" self_domain={self.local_domain} target_domain={self.remote_domain} task_id={task_id}")
+        if self.role == RoleType.SENDER:
+            out_table = pyraypsi.pir_sender(pir_in=block_data, task_id=task_id,
+                                local_address=local_address, remote_address=self.proxy_address,
+                                self_domain=self.local_domain, target_domain=self.remote_domain,
+                                redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                mult_type=1, malicious=True)
+        else:
+             out_table = pyraypsi.pir_receiver(pir_in=block_data, task_id=task_id,
+                                local_address=local_address, remote_address=self.proxy_address,
+                                self_domain=self.local_domain, target_domain=self.remote_domain,
+                                redis_address=self.redis_addr, redis_password=self.redis_pwd,
+                                mult_type=1, malicious=True)
+             
+        return out_table
 
     def _read_block_data(self, data_protocol: str, data_format: str, block_data, csv_delimiter: str = ",") -> pa.Table:
         """
@@ -1149,16 +1182,21 @@ def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, loca
 
     # if need partition file first
     if data_type == fs.FileType.File:
+        bt = time.time()
         data_blocks = repartition_for_existed_data(
             data_protocol, data_format, data_path, with_head, example_id_name, bucket_num, csv_delimiter, max_actors)
         # data_blocks = add_schema_to_all_empty_blocks(data_blocks)
 
         ray.get(dispatch_actor.update_blocks.remote(data_blocks))
+        logging.info(f"repartition_for_existed_data cost: {time.time()-bt}")
+
+        wait_large_memory_idle_worker_killed()
 
     # adjust
     if data_block_num <= max_actors:
         max_actors = data_block_num
 
+    bt = time.time()
     # PsiPirActor.options(num_cpus=avg_actor_cpus)
     actors = [PsiPirActor.remote(actor_index=i, dispatch_actor=dispatch_actor, example_id_name=example_id_name,
                                  with_head=with_head, join_type=join_type, role=role_type, data_type=data_type,
@@ -1204,6 +1242,8 @@ def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, loca
             # if no more jobs to wait
             if not result_refs:
                 break
+    logging.info(f"psi cost: {time.time()-bt}")
+    bt = time.time()
 
     # all data prepared
     if data_type == fs.FileType.File and completed_block_data:
@@ -1213,6 +1253,8 @@ def run_app(app_id, join_type, data_path, example_id_name, with_head: bool, loca
 
     # result reporting
     aggre_results = ray.get(dispatch_actor.get_results.remote())
+    logging.info(f"write result cost: {time.time()-bt}")
+    
     return generate_result(join_type, aggre_results, output_dir)
 
 
@@ -1274,34 +1316,46 @@ def create_argment_parser():
     parser.add_argument("--auth_server", help="防盗版验证服务", default=None)
     return parser
 
+RAY_OBJECT_STORE_MEMORY_PROPORTION = float(os.environ.get("RAY_OBJECT_STORE_MEMORY_PROPORTION", 0.6))
+RAY_OBJECT_STORE_MEMORY_CAN_SAFE_USE_PROPORTION = float(os.environ.get("RAY_OBJECT_STORE_MEMORY_CAN_SAFE_USE_PROPORTION", 0.8))
 
-def check_auth(target, status_server, actual_app_id, auth_server=None):
-    if auth_server is None:
-        auth_server = os.environ.get('AUTH_SERVER')
-    authclient = AuthClient()
-    cluster_id = os.environ.get("CLUSTER_ID")
-    node_id = os.environ.get("NODE_ID")
-    local_domain = os.environ.get("LOCAL_DOMAIN")
-    info = {
-        "random": 0,  # 随机数
-        "timestamp": 0,  # 当前时间戳,精确到秒
-        "workerType": "psi",  # worker类型
-        "workerVersion": "1.0.0",  # worker版本
-        "taskInfo": {
-            "clusterID": cluster_id,
-            "nodeID": node_id,
-            "localDomain": local_domain,  # 发起方domain
-            "remoteDomain": target if target else local_domain,  # 接收方domain
-            "extra": {}  # 任务额外信息
-        }
-    }
-    logging.info("------{}-------".format(info))
-    res = authclient.requestAuth(auth_server, info)
-    if res[0] != True:
-        set_node_status(status_server, actual_app_id, 0, 501,
-                        result="{}, parameter server cannot run, ps authentication failed".format(res[1]))
-        raise Exception(
-            "{}, parameter server cannot run, ps authentication failed".format(res.args[0]))
+def wait_large_memory_idle_worker_killed():
+    time_to_wait = 12
+    wait_interval = 3
+
+    while time_to_wait > 0:
+        if ray.available_resources()['object_store_memory'] > ray.cluster_resources()['object_store_memory'] * RAY_OBJECT_STORE_MEMORY_CAN_SAFE_USE_PROPORTION:
+            return
+        time.sleep(wait_interval)
+        time_to_wait -= wait_interval
+
+def chose_object_store_memory_strategy(input, actual_buckets, n_parallels):
+    size = get_data_size(input)
+
+    if size is None:
+        return None
+    
+    ray.init()
+    resources = ray.available_resources()
+    total_memory = resources["object_store_memory"] + resources["memory"]
+    ray.shutdown()
+    
+    except_storage_memory_size = max(size * 2, total_memory*RAY_OBJECT_STORE_MEMORY_PROPORTION)
+
+    # except_hash_split_memory_size = n_parallels * 
+    # except_writer_actor_memory_size = n_parallels * 
+    # mean_bucket_size = size / actual_buckets
+    # except_psi_memory_size = mean_bucket_size * 5 * n_parallels
+    
+    if except_storage_memory_size > total_memory:
+        raise Exception(f"object store memory {except_storage_memory_size} is not enough")
+
+    logging.info(f"except {except_storage_memory_size} storage memory")
+
+    return except_storage_memory_size
+
+
+
 
 
 if __name__ == "__main__":
@@ -1370,13 +1424,8 @@ if __name__ == "__main__":
         except:
             actual_example_id_name = column_index_or_names[0]
 
-        #
-        # check_auth(args.target, args.status_server,
-        #            actual_app_id, args.auth_server)
-
         # actual doing
-        ray.init()
-        ray.data.DataContext.get_current().execution_options.verbose_progress = True
+        ray.init(object_store_memory=chose_object_store_memory_strategy(args.input, actual_buckets, n_parallels))
         logging.info("Total Source:{}".format(ray.cluster_resources()))
         results = run_app(app_id=actual_app_id, join_type=join_type, data_path=args.input, example_id_name=actual_example_id_name,
                           with_head=args.csv_header, local_ip=actual_local_ip, local_start_port=args.proxy_listen, remote_proxy_address=remote_addr,

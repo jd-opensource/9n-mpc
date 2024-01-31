@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 import com.jd.mpc.domain.vo.*;
 import com.jd.mpc.redis.RedisLock;

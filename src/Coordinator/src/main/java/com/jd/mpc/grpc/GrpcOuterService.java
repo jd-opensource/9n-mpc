@@ -1,19 +1,13 @@
 package com.jd.mpc.grpc;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import javax.annotation.Resource;
 
 import cn.hutool.core.io.IoUtil;
 import com.alibaba.fastjson.JSONObject;
 import com.jd.mpc.common.enums.StoreTypeEnum;
 import com.jd.mpc.domain.param.*;
-import com.jd.mpc.domain.vo.EtlHeaderParam;
 import com.jd.mpc.service.FileService;
-import org.apache.commons.io.IOUtils;
 
 import com.jd.mpc.common.util.GsonUtil;
 import com.jd.mpc.domain.vo.PredictResult;
@@ -23,12 +17,13 @@ import com.jd.mpc.service.OuterSupport;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.service.GrpcService;
+import org.springframework.beans.factory.annotation.Autowired;
 import outer.GrpcOuterRequest;
 import outer.GrpcOuterResponse;
 import outer.OuterServiceGrpc;
 
 /**
- * grpc外部任务服务端
+ * GRPC外部任务服务端
  *
  * 
  * @date 2021/9/22 2:45 下午
@@ -37,9 +32,10 @@ import outer.OuterServiceGrpc;
 @GrpcService
 public class GrpcOuterService extends OuterServiceGrpc.OuterServiceImplBase {
 
-    @Resource
+    @Autowired
     private OuterSupport outerSupport;
-    @Resource
+
+    @Autowired
     private FileService fileService;
 
     @Override

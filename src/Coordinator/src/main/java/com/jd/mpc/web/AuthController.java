@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import authprotocol.GrpcVo;
 import authprotocol.VerifyGrpcVo;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 /**
  * @Description: auth

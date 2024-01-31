@@ -7,7 +7,7 @@ import authprotocol.GrpcVo;
 import authprotocol.IssueGrpcParam;
 import authprotocol.VerifyGrpcParam;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.concurrent.TimeUnit;
 
 /**

@@ -5,7 +5,7 @@ import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 import com.jd.mpc.common.enums.*;
 import com.jd.mpc.domain.offline.commons.SubTask;

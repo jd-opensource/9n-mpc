@@ -2,7 +2,7 @@ package com.jd.mpc.web;
 
 import java.util.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 import cn.hutool.core.lang.id.NanoId;
 import cn.hutool.core.util.IdUtil;

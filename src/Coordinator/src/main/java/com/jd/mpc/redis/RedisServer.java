@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 import java.util.Calendar;
 import java.util.Date;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 import cn.hutool.core.codec.Base64;
 import com.jd.mpc.common.util.JNISigner;

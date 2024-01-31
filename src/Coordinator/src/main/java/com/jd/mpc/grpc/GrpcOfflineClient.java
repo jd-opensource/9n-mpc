@@ -7,7 +7,7 @@ import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 import com.alibaba.fastjson.JSONObject;
 import com.jd.mpc.cert.CertGenerator;

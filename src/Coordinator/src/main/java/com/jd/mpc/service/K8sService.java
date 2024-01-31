@@ -8,7 +8,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 import com.alibaba.nacos.common.utils.MD5Utils;
 import com.google.common.collect.Lists;

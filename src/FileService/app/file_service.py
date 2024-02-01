@@ -9,7 +9,6 @@ import csv
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
 from pyarrow import fs
-import orc_pb2
 import pyarrow.parquet as pq
 
 from redis_client import RedisManage
@@ -154,14 +153,6 @@ def process_csv_cfs_heads_size(path):
     result_size = os.path.getsize(path)
     return result_heads, result_col, result_size
 
-def process_orc_cfs_heads_size(path):
-    footer = orc_pb2.get_orc_footer_from_path(path)
-    headers = orc_pb2.parse_orc_header(footer)
-    result_col = len(headers)
-    result_heads = headers
-    result_size = os.path.getsize(path)
-    return result_heads, result_col, result_size
-
 def infer_format(file_path):
     lower_base_path = file_path.lower()
     if lower_base_path.endswith(".csv") or lower_base_path.endswith(".txt"):
@@ -199,7 +190,6 @@ def process_getTableInfo(path):
                             table_info["result"]["heads"], table_info["result"]["col"], _ = process_csv_cfs_heads_size(file_path)
                             table_info["result"]["format"] = 1
                         elif infer_format(file_path) == "orc":
-                            table_info["result"]["heads"], table_info["result"]["col"], _ = process_orc_cfs_heads_size(file_path)
                             table_info["result"]["format"] = 2
                         elif infer_format(file_path) == "parquet":
                             file_system = fs.LocalFileSystem()
@@ -219,7 +209,6 @@ def process_getTableInfo(path):
                 table_info["result"]["heads"], table_info["result"]["col"], table_info["result"]["size"] = process_csv_cfs_heads_size(path)
                 table_info["result"]["format"] = 1
             elif infer_format(path) == "orc":
-                table_info["result"]["heads"], table_info["result"]["col"], table_info["result"]["size"] = process_orc_cfs_heads_size(path)
                 table_info["result"]["format"] = 2
             elif infer_format(path) == "parquet":
                 file_system = fs.LocalFileSystem()

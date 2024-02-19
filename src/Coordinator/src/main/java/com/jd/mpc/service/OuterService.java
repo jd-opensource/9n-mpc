@@ -311,16 +311,6 @@ public class OuterService {
                                 offlineTask.getResourcesType())) {
                             k8sService.deleteDeploymentById(id, subId);
                         }
-                        else if (TaskTypeEnum.XGBOOST.getName().equals(offlineTask.getTaskType())) {
-                            k8sService.deleteCrdPodById(id, subId, offlineTask.getCrdName(), 4, 3);
-                        }
-                        else if (TaskTypeEnum.NN.getName().equals(offlineTask.getTaskType())) {
-                            k8sService.deleteCrdPodById(id, subId, offlineTask.getCrdName(), 4, 3);
-                            k8sService.deleteDeploymentForCrd(id, subId,
-                                    CommonConstant.NN_MPC_POD_NAME_STR);
-                            k8sService.deleteServiceForCrd(id, subId,
-                                    CommonConstant.NN_MPC_POD_NAME_STR);
-                        }
                     }
                 }
             }
@@ -337,18 +327,12 @@ public class OuterService {
                     taskSupport.deleteTask(id, TaskStatusEnum.ERROR.getStatus());
                     taskPersistenceService.updateParentTaskStatus(id, TaskStatusEnum.ERROR.getStatus());
                 }
-                // 发送邮件
-                // this.sendMail(id, subId, taskIndex);
             }
             // 大于0 重启任务
             else if (newStatus > 0) {
                 // 重启同一阶段所有任务
-                // log.info("重启任务{}-{}", id, subId);
-                // targetMap.get(id).forEach(target -> grpcOfflineClient.commit(target, id, 0));
             }
-            // modify by feiguodong1 for coor's HA
             offlineTaskMap.put(subTask);
-            // offlineTaskMap内容有更新，需要持久化到redis add by yezhenyue on 20220408
             offlineTaskMap.persistence();
         }finally {
             redisService.unLock(lockKey);

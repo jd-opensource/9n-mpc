@@ -8,6 +8,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
+
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import jakarta.annotation.Resource;
 
 import com.alibaba.nacos.common.utils.MD5Utils;
@@ -33,14 +36,8 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.NodeMetrics;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.NodeMetricsList;
 import io.fabric8.kubernetes.client.Config;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
-import io.fabric8.kubernetes.client.dsl.internal.RawCustomResourceOperationsImpl;
-import io.fabric8.kubernetes.client.utils.HttpClientUtils;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.OkHttpClient;
 
 /**
  * k8s服务类
@@ -55,7 +52,7 @@ public class K8sService {
     /**
      * k8s客户端
      */
-    private static DefaultKubernetesClient k8sClient;
+    private static KubernetesClient k8sClient;
     @Resource
     private PodFactory podFactory;
     @Resource
@@ -76,9 +73,7 @@ public class K8sService {
         String adminConfData = IOUtils.toString(Objects.requireNonNull(inputStream));
         Config config = Config.fromKubeconfig(adminConfData);
         config.setNamespace(namespace);
-        OkHttpClient httpClient = HttpClientUtils.createHttpClient(config,
-                e -> e.hostnameVerifier((s, sslSession) -> true));
-        k8sClient = new DefaultKubernetesClient(httpClient, config);
+        k8sClient = new KubernetesClientBuilder().withConfig(config).build();
     }
 
     /**
@@ -98,7 +93,7 @@ public class K8sService {
      *
      * @param subTask 子任务
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void commit(SubTask subTask) {
         log.info("commit subTask：{}-{}", subTask.getId(), subTask.getSubId());
         // 1.启动pod
@@ -120,7 +115,7 @@ public class K8sService {
      */
     public void deleteDeploymentById(String id) {
         List<Deployment> deploymentList = getDeploymentList(id);
-        k8sClient.apps().deployments().delete(deploymentList);
+        deleteDeploymentList(deploymentList);
     }
 
     /**
@@ -177,10 +172,12 @@ public class K8sService {
      */
     public void delDeployLike(String pattern){
         List<Deployment> deployments = this.likeDeployList(pattern);
-        deployments.forEach(deployment -> {
-            log.info("delete deployment:"+deployment.getMetadata().getName());
-            k8sClient.apps().deployments().delete(deployment);
-        });
+        try {
+            k8sClient.resourceList(deployments).delete();
+        }
+        catch (Exception e) {
+
+        }
     }
 
     /**
@@ -246,7 +243,12 @@ public class K8sService {
      */
     public void deleteDeploymentById(String id, Integer subId) {
         List<Deployment> deploymentList = getDeploymentList(id);
-        k8sClient.apps().deployments().delete(deploymentList);
+        try {
+            k8sClient.resourceList(deploymentList).delete();
+        }
+        catch (Exception e) {
+
+        }
         log.info("删除任务：{}", id);
     }
 
@@ -272,25 +274,6 @@ public class K8sService {
         return resourcesInfo;
     }
 
-    /**
-     * 获取k8s资源量
-     *
-     * @return k8s资源量
-     */
-    public ResourcesInfo getResourcesInfo() {
-        NodeMetricsList nodeMetricsList = k8sClient.inNamespace(namespace).top().nodes().metrics();
-        ResourcesInfo resourcesInfo = new ResourcesInfo();
-        int cpu = 0;
-        int memory = 0;
-        for (NodeMetrics nodeMetrics : nodeMetricsList.getItems()) {
-            cpu += Integer.parseInt(nodeMetrics.getUsage().get("cpu").getAmount());
-            memory += Integer.parseInt(nodeMetrics.getUsage().get("memory").getAmount());
-        }
-        resourcesInfo.setCpu(cpu);
-        resourcesInfo.setMemory(memory);
-        return resourcesInfo;
-    }
-
     public void deleteDeploymentForCrd(String id, Integer subId, String nnMpcPodNameStr) {
         DeploymentList list = k8sClient.apps().deployments().inNamespace(namespace).list();
         List<Deployment> deploymentList = list.getItems().stream().filter(deployment -> {
@@ -301,11 +284,18 @@ public class K8sService {
             return name.startsWith(prefix + nnMpcPodNameStr + id);
         }).collect(Collectors.toList());
         if (!deploymentList.isEmpty()) {
-            k8sClient.apps().deployments().delete(deploymentList);
+            deleteDeploymentList(deploymentList);
             log.info("删除任务：{}", id);
         }
     }
 
+    private void deleteDeploymentList(List<Deployment> deploymentList) {
+        try {
+            k8sClient.resourceList(deploymentList).delete();
+        }
+        catch (Exception e) {
+        }
+    }
     /**
      * 删除 nn产生的service
      * 
@@ -321,7 +311,11 @@ public class K8sService {
                     return name.startsWith(prefix + nnMpcPodNameStr + id);
                 }).collect(Collectors.toList());
         if (!serviceList.isEmpty()) {
-            k8sClient.services().delete(serviceList);
+            try {
+                k8sClient.resourceList(serviceList).delete();
+            }
+            catch (Exception e) {
+            }
             log.info("删除service：{}", id);
         }
     }
@@ -338,90 +332,13 @@ public class K8sService {
             }
         }).collect(Collectors.toList());
         if (!podList.isEmpty()) {
-            k8sClient.pods().delete(podList);
+            try {
+                k8sClient.resourceList(podList).delete();
+            }
+            catch (Exception e) {
+            }
             log.info("删除交互式分析实例：{}", instanceTag);
         }
     }
 
-    /**
-     * 根据父任务id删除 crd pod
-     *
-     * @param id 父任务id
-     * @param subId 阶段任务id
-     * @param crdName crd名称
-     */
-    public void deleteCrdPodById(String id, Integer subId, String crdName, int taskIdIndex,
-                                 int subIdIndex) {
-        try {
-
-            List<CustomResourceDefinition> crdList = k8sClient.apiextensions().v1beta1()
-                    .customResourceDefinitions().list().getItems();
-            CustomResourceDefinition crdDef = crdList.stream().filter(crd -> {
-                String name = crd.getMetadata().getName();
-                if (name.equals(crdName)) {
-                    log.error("{}任务匹配到crd", id);
-                    return true;
-                }
-                return false;
-            }).findAny().orElse(null);
-            if (crdDef != null) {
-                RawCustomResourceOperationsImpl crdImpl = k8sClient
-                        .customResource(CustomResourceDefinitionContext.fromCrd(crdDef));
-                Map<String, Object> map1s = crdImpl.get();
-                for (int i = 0; i < JSON.parseArray(JSON.toJSONString(map1s.get("items")))
-                        .size(); i++) {
-                    JSONObject obj = JSON.parseArray(JSON.toJSONString(map1s.get("items")))
-                            .getJSONObject(i);
-                    if (obj != null
-                            && obj.getJSONObject("metadata").getString("namespace")
-                            .equals(namespace)
-                            && Objects.equals(
-                            obj.getJSONObject("metadata").getString("name").split("-")[0],
-                            prefix)
-                            && Objects.equals(id,
-                            obj.getJSONObject("metadata").getString("name")
-                                    .split("-")[obj.getJSONObject("metadata")
-                                    .getString("name").split("-").length
-                                    - taskIdIndex])) {
-                        String crdPodName = obj.getJSONObject("metadata").getString("name");
-                        if (crdImpl.delete(namespace, crdPodName)) {
-                            log.info("删除任务：{}", id);
-                        }
-                        break;
-                    }
-                }
-
-            }
-            else {
-                log.error("crd:{}未发现！！", crdName);
-            }
-
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * 根据任务id查找crd
-     *
-     * @param id 任务id
-     * @return crd
-     */
-    public List<CustomResourceDefinition> getCrdList(String id, int taskIdIndex) {
-        DeploymentList list = k8sClient.apps().deployments().inNamespace(namespace).list();
-        if (list == null) {
-            return new ArrayList<>();
-        }
-        List<CustomResourceDefinition> crdList = k8sClient.apiextensions().v1beta1()
-                .customResourceDefinitions().list().getItems();
-        List<CustomResourceDefinition> crdDefs = crdList.stream().filter(crd -> {
-            String name = crd.getMetadata().getName();
-            String[] split = name.split("-");
-            boolean flag = Objects.equals(split[0], prefix)
-                    && Objects.equals(id, split[split.length - taskIdIndex]);
-            return flag;
-        }).collect(Collectors.toList());
-        return crdDefs == null ? new ArrayList<CustomResourceDefinition>() : crdDefs;
-    }
 }

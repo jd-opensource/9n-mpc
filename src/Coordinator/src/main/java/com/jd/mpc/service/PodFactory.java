@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
 import jakarta.annotation.Resource;
 
 import com.alibaba.nacos.api.annotation.NacosInjected;
@@ -55,7 +56,7 @@ public class PodFactory {
     private ConfigService configService;
 
     @Transactional
-    public void createPodList(SubTask subTask, DefaultKubernetesClient k8sClient) {
+    public void createPodList(SubTask subTask, KubernetesClient k8sClient) {
 
         // 批量创建任务
         subTask.getTasks().forEach(offlineTask -> {
@@ -71,7 +72,7 @@ public class PodFactory {
         });
     }
 
-    private void createDeployment(OfflineTask offlineTask, String env, DefaultKubernetesClient k8sClient, String clusterId) {
+    private void createDeployment(OfflineTask offlineTask, String env, KubernetesClient k8sClient, String clusterId) {
         MixedOperation<Deployment, DeploymentList, RollableScalableResource<Deployment>> de = k8sClient.apps().deployments();
         Deployment deployment;
         TaskTypeEnum taskType = TaskTypeEnum.getByValue(offlineTask.getTaskType());
@@ -82,7 +83,7 @@ public class PodFactory {
             }else {
                 yaml = configService.getConfig(offlineTask.getDeploymentPath(), CommonConstant.K8S_GROUP, 10000);
             }
-            deployment = de.load(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8))).get();
+            deployment = de.load(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8))).item();
         }catch (Exception e){
             e.printStackTrace();
             throw new CommonException("read functor's "+offlineTask.getDeploymentPath()+" config failed!");
@@ -95,7 +96,7 @@ public class PodFactory {
             service.getMetadata().setName(offlineTask.getServiceName());
             service.getMetadata().getLabels().put("name", offlineTask.getServiceName());
             service.getSpec().getSelector().put("app", offlineTask.getServiceName());
-            k8sClient.services().create(service);
+            k8sClient.services().resource(service).create();
         }
     }
 
@@ -124,7 +125,7 @@ public class PodFactory {
                 // 填充容器
                 this.fillContainer(container, i, clusterId, offlineTask);
                 // 创建pod
-                de.create(deployment);
+                de.resource(deployment).create();
                 log.info("启动任务pod:{}", name);
             }
         });
@@ -189,18 +190,6 @@ public class PodFactory {
     }
 
 
-    private void addVolume(PodSpec spec,String volumeName,String hostPath,String mountPath){
-        List<VolumeMount> volumeMounts = spec.getContainers().get(0).getVolumeMounts();
-        List<Volume> volumes = spec.getVolumes();
-        VolumeMount volumeMount = new VolumeMount();
-        volumeMount.setName(volumeName);
-        volumeMount.setMountPath(mountPath);
-        volumeMounts.add(volumeMount);
-        Volume volume = new Volume();
-        volume.setName(volumeName);
-        volume.setHostPath(new HostPathVolumeSource(hostPath,"DirectoryOrCreate"));
-        volumes.add(volume);
-    }
 
     private void replaceEnv(PodSpec spec, String env) {
         spec.getContainers().forEach(container -> {
@@ -291,143 +280,6 @@ public class PodFactory {
             });
             container.setEnv(envList);
         }
-    }
-
-    private void fillWorkerNum(JsonObject rayWorker, OfflineTask offlineTask) {
-        rayWorker.addProperty("minWorkers", Integer.parseInt(offlineTask.getParameters().get("worker-nums")));
-        rayWorker.addProperty("maxWorkers", Integer.parseInt(offlineTask.getParameters().get("worker-nums")));
-    }
-
-    // 填充挂载
-    private void fillVolumes(JsonObject podType, String env) {
-        JsonObject spec = podType.get("podConfig").getAsJsonObject().get("spec").getAsJsonObject();
-        spec.getAsJsonObject("nodeSelector").remove("test-jd");
-        if (Objects.equals("test", env)) {
-            spec.remove("nodeSelector");
-        }
-        for (int i = 0; i < spec.getAsJsonArray("volumes").size(); i++) {
-            JsonObject volume = spec.getAsJsonArray("volumes").get(i).getAsJsonObject();
-            volume.getAsJsonObject("hostPath").addProperty("path", volume.get("hostPath").getAsJsonObject().get("path").getAsString() + "/" + namespace + "/" + volume.get("name").getAsString());
-        }
-
-    }
-
-    private void fillHeadEnv(JsonObject rayHead, OfflineTask offlineTask) {
-        JsonArray env = new JsonArray();
-        JsonObject appIdEnv = new JsonObject();
-        appIdEnv.addProperty("name", "APP_ID");
-        appIdEnv.addProperty("value", offlineTask.getParameters().get("application-id"));
-        env.add(appIdEnv);
-        JsonObject cpuEnv = new JsonObject();
-        cpuEnv.addProperty("name", "CPU");
-        cpuEnv.addProperty("value", offlineTask.getCpu().toString());
-        env.add(cpuEnv);
-        JsonObject memoryEnv = new JsonObject();
-        memoryEnv.addProperty("name", "MEMORY");
-        memoryEnv.addProperty("value", offlineTask.getMemory().toString());
-        env.add(memoryEnv);
-        JsonObject clusterIdEnv = new JsonObject();
-        clusterIdEnv.addProperty("name", "CLUSTER_ID");
-        clusterIdEnv.addProperty("value", offlineTask.getId() + "-" + String.valueOf(offlineTask.getSubId()) + "-" + offlineTask.getTaskIndex().toString());
-        env.add(clusterIdEnv);
-        JsonObject localDomainEnv = new JsonObject();
-        localDomainEnv.addProperty("name", "LOCAL_DOMAIN");
-        localDomainEnv.addProperty("value", offlineTask.getTarget());
-        env.add(localDomainEnv);
-        String nodeId = offlineTask.getTaskIndex().intValue() == 0 ? String.valueOf(0) : (offlineTask.getTaskIndex().toString() + String.format("%03d", 0));
-        JsonObject nodeIdEnv = new JsonObject();
-        nodeIdEnv.addProperty("name", "NODE_ID");
-        nodeIdEnv.addProperty("value", nodeId);
-        env.add(nodeIdEnv);
-        JsonObject taskIdEnv = new JsonObject();
-        taskIdEnv.addProperty("name", "TASK_ID");
-        taskIdEnv.addProperty("value", offlineTask.getId());
-        env.add(taskIdEnv);
-        JsonObject redisHostEnv = new JsonObject();
-        redisHostEnv.addProperty("name", "REDIS_HOST");
-        redisHostEnv.addProperty("value", offlineTask.getRedis_server().split(":")[0]);
-        env.add(redisHostEnv);
-        JsonObject redisPortEnv = new JsonObject();
-        redisPortEnv.addProperty("name", "REDIS_PORT");
-        redisPortEnv.addProperty("value", offlineTask.getRedis_server().split(":")[1]);
-        env.add(redisPortEnv);
-        JsonObject redisPwdEnv = new JsonObject();
-        redisPwdEnv.addProperty("name", "REDIS_PASSWORD");
-        redisPwdEnv.addProperty("value", offlineTask.getRedis_password());
-        env.add(redisPwdEnv);
-
-        JsonObject containers = rayHead.getAsJsonObject("podConfig").getAsJsonObject("spec").getAsJsonArray("containers").get(0).getAsJsonObject();
-        containers.add("env", env);
-    }
-
-    private void fillTfReplicaSpecs(String name, JsonObject tfReplicaSpecs, OfflineTask offlineTask, String env) {
-        JsonObject replicaSpecs = tfReplicaSpecs.getAsJsonObject(name);
-        if (name.equals("Worker")) {
-            replicaSpecs.addProperty("replicas", Integer.parseInt(offlineTask.getParameters().get("worker-nums")) - 1);
-        }
-        if (name.equals("PS")) {
-            replicaSpecs.addProperty("replicas", Integer.parseInt(offlineTask.getParameters().get("ps-nums")));
-        }
-        JsonObject spec = replicaSpecs.getAsJsonObject("template").getAsJsonObject("spec");
-        if (!Objects.equals("test", env)) {
-            spec.getAsJsonObject("nodeSelector").remove("mpc");
-            spec.remove("serviceAccountName");
-        } else {
-            spec.getAsJsonObject("nodeSelector").remove("mpc");
-        }
-        spec.remove("nodeSelector");
-
-        JsonObject container = spec.getAsJsonArray("containers").get(0).getAsJsonObject();
-        JsonArray volumes = spec.getAsJsonArray("volumes");
-        for (int i = 0; i < volumes.size(); i++) {
-            JsonObject volume = volumes.get(i).getAsJsonObject();
-            if (CommonConstant.K8S_DATA_VOLUME.equals(volume.get("name").getAsString())){
-                volume.getAsJsonObject("hostPath").addProperty("path",CommonUtils.genVolumeHostPath(CommonConstant.K8S_DATA_VOLUME));
-            }else if (CommonConstant.K8S_LOG_VOLUME.equals(volume.get("name").getAsString())){
-                volume.getAsJsonObject("hostPath").addProperty("path",CommonUtils.genVolumeHostPath(CommonConstant.K8S_LOG_VOLUME));
-            }
-        }
-        try {
-
-            if(offlineTask.getNnImage() != null){
-                container.addProperty("image",offlineTask.getNnImage());
-            }
-            if (offlineTask.getMemory() != null) {
-                container.getAsJsonObject("resources").getAsJsonObject("limits").addProperty("memory", String.valueOf(offlineTask.getMemory()) + "Gi");
-                container.getAsJsonObject("resources").getAsJsonObject("requests").addProperty("memory", String.valueOf(offlineTask.getMemory()) + "Gi");
-            }
-            if (offlineTask.getCpu() != null) {
-                container.getAsJsonObject("resources").getAsJsonObject("limits").addProperty("cpu", String.valueOf(offlineTask.getCpu()));
-                container.getAsJsonObject("resources").getAsJsonObject("requests").addProperty("cpu", String.valueOf(offlineTask.getCpu()));
-            }
-        } catch (Exception e) {
-
-        }
-        JsonArray args = new JsonArray();
-        args.add("--url=" + offlineTask.getUrl());
-        args.add("--workdir=" + offlineTask.getWorkDir());
-        if (Objects.equals(offlineTask.getRole(), "leader")) {
-            args.add(offlineTask.getRole());
-        } else {
-            args.add(offlineTask.getRole() + offlineTask.getExtParameters().get("role_id"));
-        }
-        offlineTask.getParameters().forEach((k, v) -> args.add("--" + k + "=" + v));
-        container.add("args", args);
-        JsonArray envs = container.getAsJsonArray("env");
-        offlineTask.getExtParameters().put("NODE_ID", "0");
-        offlineTask.getExtParameters().put("TASK_ID", offlineTask.getId());
-        offlineTask.getExtParameters().put("CLUSTER_ID", offlineTask.getId() + "-" + String.valueOf(offlineTask.getSubId()) + "-" + offlineTask.getTaskIndex().toString());
-        offlineTask.getExtParameters().put("LOCAL_DOMAIN", offlineTask.getTarget());
-        offlineTask.getExtParameters().put("CPU",String.valueOf(offlineTask.getCpu()));
-        offlineTask.getExtParameters().put("MEMORY", String.valueOf(offlineTask.getMemory()));
-
-        offlineTask.getExtParameters().forEach((k, v) -> {
-            for (JsonElement jsonElement : envs) {
-                if (Objects.equals(jsonElement.getAsJsonObject().getAsJsonPrimitive("name").getAsString(), k)) {
-                    jsonElement.getAsJsonObject().addProperty("value", v);
-                }
-            }
-        });
     }
 
 }

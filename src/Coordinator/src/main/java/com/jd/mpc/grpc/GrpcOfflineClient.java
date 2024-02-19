@@ -9,15 +9,9 @@ import java.util.concurrent.TimeUnit;
 
 import jakarta.annotation.Resource;
 
-import com.alibaba.fastjson.JSONObject;
-import com.jd.mpc.cert.CertGenerator;
-import com.jd.mpc.domain.cert.SignCertVo;
-import com.jd.mpc.domain.offline.commons.PreJob;
 import com.jd.mpc.redis.RedisService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 

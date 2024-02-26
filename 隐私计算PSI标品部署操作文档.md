@@ -77,7 +77,7 @@
 
 ## 3 预定操作
 - 创建K8S namespace，建议格式NAMESPACE=“mpc-$COMPANY-cu”，后续部署均在该namespace下进行；
-- 设定通信proxy_target，建议与K8S namespace相同，即PROXY_TARGET="mpc-$COMPANY-cu"，该配置项信息将用于后续Proxy部署时证书生成以及跨域通信使用。
+- 设定通信proxy_target（该项是一个自定义的配置，这里只需定下名称即可），建议与K8S namespace相同，即PROXY_TARGET="mpc-$COMPANY-cu"，该配置项信息将用于后续Proxy部署时证书生成以及跨域通信使用。
 
 ## 4 redis
 
@@ -258,6 +258,7 @@ source coordinator_init.sql
     - 可参考配置脚本：[nacos_init.sh](nacos_init.sh)
 
 - 2.2  创建和修改 APPLICATION_GROUP, 增加data_id为[application.properties](docs/prop/application.properties) 的配置，替换如下配置：
+  - PROXY_TARGET
   - MYSQL_URL
   - MYSQL_USERNAME
   - MYSQL_PASSWORD

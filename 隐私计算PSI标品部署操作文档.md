@@ -77,367 +77,84 @@
 以上组件需要按顺序部署，其中proxy，psi，redis是用于执行隐私求交所需的必须镜像，nacos、mysql、coordinator是用于接入京东平台所需。
 
 ## 3 预定操作
-- 创建K8S namespace，建议格式NAMESPACE=“mpc-$COMPANY-cu”
-- 设定通信proxy_target，建议与K8S namespace相同，即PROXY_TARGET="mpc-$COMPANY-cu"
+- 创建K8S namespace，建议格式NAMESPACE=“mpc-$COMPANY-cu”，后续部署均在该namespace下进行；
+- 设定通信proxy_target，建议与K8S namespace相同，即PROXY_TARGET="mpc-$COMPANY-cu"，该配置项信息将用于后续Proxy部署时证书生成以及跨域通信使用。
 
 ## 4 redis
 
-1. 创建redis配置configmap
+1. 创建[Redis所需configmap配置文件](docs/yamls/redis_configmap.yaml "Redis Configmap")，替换其中如下的相关配置：
 - REDIS_POD_PORT=6379
-- REDIS_PASSWORD
-- REDIS_CONF=redis
-
-```
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis
-data:
-  redis.conf: |
-    bind 0.0.0.0
-    protected-mode no
-    port $REDIS_POD_PORT
-    tcp-backlog 511
-    timeout 0
-    tcp-keepalive 300
-    daemonize no
-    supervised no
-    pidfile /var/run/redis_6379.pid
-    loglevel notice
-    logfile /data/redis.log
-    databases 16
-    save 900 1
-    save 300 10
-    save 60 10000
-    stop-writes-on-bgsave-error yes
-    rdbcompression yes
-    rdbchecksum yes
-    dbfilename dump.rdb
-    dir /data
-    slave-serve-stale-data yes
-    slave-read-only yes
-    repl-diskless-sync no
-    repl-diskless-sync-delay 5
-    repl-disable-tcp-nodelay no
-    slave-priority 100
-    requirepass $REDIS_PASSWORD
-    rename-command FLUSHALL ""
-    rename-command FLUSHDB ""
-    rename-command KEYS ""
-    appendonly no
-    appendfilename "appendonly.aof"
-    appendfsync everysec
-    no-appendfsync-on-rewrite no
-    auto-aof-rewrite-percentage 100
-    auto-aof-rewrite-min-size 64mb
-    aof-load-truncated yes
-    lua-time-limit 5000
-    slowlog-log-slower-than 10000
-    slowlog-max-len 128
-    latency-monitor-threshold 0
-    notify-keyspace-events ""
-    hash-max-ziplist-entries 512
-    hash-max-ziplist-value 64
-    list-max-ziplist-size -2
-    list-compress-depth 0
-    set-max-intset-entries 512
-    zset-max-ziplist-entries 128
-    zset-max-ziplist-value 64
-    hll-sparse-max-bytes 3000
-    activerehashing yes
-    client-output-buffer-limit normal 0 0 0
-    client-output-buffer-limit slave 256mb 64mb 60
-    client-output-buffer-limit pubsub 32mb 8mb 60
-    hz 10
-    aof-rewrite-incremental-fsync yes
-
-```
-
-2. 创建redis deployment
-- REDIS_IMAGE
-- REDIS_POD_PORT=6379
-- REDIS_VOLUME_PATH
+- REDIS_PASSWORD=myRedis-password
 - REDIS_CONF=redis
 ```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-  template:
-    metadata:
-      labels:
-        app: redis
-    spec:
-      containers:
-        - name: redis
-          image: $REDIS_IMAGE
-          ports:
-            - containerPort: $REDIS_POD_PORT
-          resources:
-            limits:
-              cpu: "1"
-              memory: "1Gi"
-            requests:
-              cpu: "250m"
-              memory: "256Mi"
-          volumeMounts:
-            - name: redis-volume
-              mountPath: /data
-            - name: redis-conf
-              mountPath: /etc/redis.conf
-              subPath: redis.conf
-              readOnly: true
-      volumes:
-        - hostPath:
-            path: $REDIS_VOLUME_PATH
-            type: DirectoryOrCreate
-          name: redis-volume
-        - name: redis-conf
-          configMap:
-            name: $REDIS_CONF
+kubectl -n ${NAMESPACE} apply -f redis_configmap.yaml
 ```
 
-3. 创建redis service
+2. 创建[RedisPod启动需要的deployment配置文件](docs/yamls/redis_deployment.yaml "Redis Deployment")，替换其中如下的相关配置：
+- REDIS_IMAGE=myRedis_image_full_tags
 - REDIS_POD_PORT=6379
-- REDIS_SERVICE_PORT
-- REDIS_SERVICE_IP
+- REDIS_VOLUME_PATH=myRedis_persist_mount_path
+- REDIS_CONF=redis
+```
+kubectl -n ${NAMESPACE} apply -f redis_deployment.yaml
+```
 
+3. 创建[RedisService的启动配置文件](docs/yamls/redis_service.yaml "Redis Service")，替换如下配置：
+- REDIS_POD_PORT=6379
+- REDIS_SERVICE_PORT=myRedis_service_port
 ```
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis
-spec:
-  selector:
-    app: redis
-  ports:
-    - protocol: TCP
-      port: 6379
-      targetPort: $REDIS_POD_PORT
+kubectl -n ${NAMESPACE} apply -f redis_service.yaml
 ```
+4. 记录开启的redis服务IP，IP来源于截图的第三列：
+- REDIS_SERVICE_IP=myRedis_service_ip
+```
+kubectl -n ${NAMESPACE} get svc
+```
+![RedisService启动情况](docs/imgs/redis_service_svc.PNG "Redis Service Snapshot")，  
 
 ## 5 mysql
-1. 创建mysql用户名密码secret
-- MYSQL_USERNAME
-- MYSQL_PASSWORD
+1. [创建mysql用户名密码secret](docs/yamls/mysql_secret.yaml "Mysql Secret")，替换如下配置：
+- MYSQL_USERNAME=mysql-username
+- MYSQL_PASSWORD=mysql-password
 - MYSQL_PASSWORD_SECRET=mysql-password-secret
+```
+kubectl -n ${NAMESPACE} apply -f mysql_secret.yaml
+```
 
-```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mysql-password-secret
-type: Opaque
-data:
-  username: $MYSQL_USERNAME
-  password: $MYSQL_PASSWORD
-```
-2. 创建mysql deployment
-- MYSQL_IMAGE
+2. [创建mysql deployment](docs/yamls/mysql_deployment.yaml)，替换如下配置：
+- MYSQL_IMAGE=mysql_image_full_tags
 - MYSQL_POD_PORT=3306
-- MYSQL_VOLUME_PATH
-
+- MYSQL_VOLUME_PATH=mysql_persist_mount_path
 ```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mysql
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: mysql
-  template:
-    metadata:
-      labels:
-        app: mysql
-    spec:
-      containers:
-        - name: mysql
-          image: $MYSQL_IMAGE
-          ports:
-            - containerPort: $MYSQL_POD_PORT
-          env:
-            - name: MYSQL_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: $MYSQL_PASSWORD_SECRET
-                  key: password
-          volumeMounts:
-            - name: mysql-volume
-              mountPath: /var/lib/mysql
-      volumes:
-        - hostPath:
-            path: $MYSQL_VOLUME_PATH
-            type: DirectoryOrCreate
-          name: mysql-volume
-
+kubectl -n ${NAMESPACE} apply -f mysql_deployment.yaml
 ```
 
-3. 创建mysql service
+3. [创建mysql service](docs/yamls/mysql_service.yaml), 替换如下配置：
 - MYSQL_POD_PORT=3306
 - MYSQL_SERVICE_PORT=3306
-- MYSQL_SERVICE_IP
-
 ```
-apiVersion: v1
-kind: Service
-metadata:
-  name: mysql
-spec:
-  selector:
-    app: mysql
-  ports:
-    - protocol: TCP
-      port: $MYSQL_SERVICE_PORT
-      targetPort: $MYSQL_POD_PORT
-  type: ClusterIP
-
+kubectl -n ${NAMESPACE} apply -f mysql_service.yaml
 ```
-
-4. mysql初始化
-
-- 建库建表
+4. 记录开启的mysql服务IP，IP来源于截图的第三列：
+- MYSQL_SERVICE_IP=mysql_service_ip
 ```
-create database mpc;
-use mpc;
-CREATE TABLE `parent_task` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `task_id` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'id',
-  `status` int NOT NULL,
-  `type` varchar(100) DEFAULT NULL,
-  `create_at` datetime NOT NULL,
-  `update_at` datetime NOT NULL,
-  `is_deleted` tinyint NOT NULL DEFAULT '0',
-  `params` longtext,
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
-CREATE TABLE `children_task` (
-  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '[]',
-  `parent_task_id` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'id',
-  `sub_id` int NOT NULL,
-  `task_index` int NOT NULL,
-  `pod_num` int DEFAULT NULL COMMENT 'pod',
-  `status` int NOT NULL,
-  `task_type` varchar(100) DEFAULT NULL,
-  `create_at` datetime NOT NULL,
-  `update_at` datetime NOT NULL,
-  `is_deleted` tinyint NOT NULL DEFAULT '0',
-  `message` text,
-  `result` longtext,
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+kubectl -n ${NAMESPACE} get svc
+```
+![RedisService启动情况](docs/imgs/mysql_service_svc.PNG "Mysql Service Snapshot")，  
 
-use mpc;
-CREATE TABLE `data_block_meta_l` (
-  `block_id` varchar(300) NOT NULL DEFAULT '',
-  `dfs_data_block_dir` varchar(500) NOT NULL DEFAULT '',
-  `partition_id` bigint DEFAULT '0',
-  `file_version` bigint DEFAULT '0',
-  `start_time` bigint DEFAULT NULL,
-  `end_time` bigint DEFAULT NULL,
-  `example_ids` bigint DEFAULT '0',
-  `leader_start_index` bigint DEFAULT '0',
-  `leader_end_index` bigint DEFAULT '0',
-  `follower_start_index` bigint DEFAULT '0',
-  `follower_end_index` bigint DEFAULT '0',
-  `data_block_index` bigint DEFAULT '0',
-  `create_time` bigint DEFAULT NULL,
-  `update_time` bigint DEFAULT NULL,
-  `create_status` int DEFAULT '2',
-  `consumed_status` int DEFAULT NULL,
-  `follower_restart_index` bigint DEFAULT '0',
-  `data_source_name` varchar(300) DEFAULT NULL,
-  PRIMARY KEY (`block_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+5. mysql初始化
 
-use mpc;
-CREATE TABLE `job_task_stub` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `parent_task_id` varchar(100) DEFAULT NULL COMMENT '父任务id',
-  `pre_job_json` longtext DEFAULT NULL COMMENT '任务详情json',
-  `job_target` varchar(30) DEFAULT NULL COMMENT '任务执行端',
-  `job_distributor_sign` varchar(500) DEFAULT NULL COMMENT '任务发起端签名MD5withRSA',
-  `job_executor_sign` varchar(500) DEFAULT NULL COMMENT '任务执行端签名MD5withRSA',
-  `job_distributor_cert` varchar(2000) DEFAULT NULL COMMENT '任务发起端证书内容',
-  `job_executor_cert` varchar(2000) DEFAULT NULL COMMENT '任务执行端证书内容',
-  `is_local` tinyint(4) NOT NULL COMMENT '任务来源，1=自身发起，0=外部发起',
-  `create_at` datetime NOT NULL,
-  `update_at` datetime NOT NULL,
-  `is_deleted` tinyint(4) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
-CREATE TABLE `cert_info` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `cert_content` varchar(2000) DEFAULT NULL COMMENT '证书内容',
-  `public_exponent` varchar(1000) DEFAULT NULL COMMENT '公钥指数，ACES加密',
-  `private_exponent` varchar(1000) DEFAULT NULL COMMENT '私钥指数，ACES加密',
-  `modulus` varchar(1000) DEFAULT NULL COMMENT '模数，ACES加密',
-  `is_root` tinyint(4) NOT NULL COMMENT '是否根证书，1是，0否',
-  `create_at` datetime NOT NULL,
-  `update_at` datetime NOT NULL,
-  `is_deleted` tinyint(4) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8;
-CREATE TABLE `auth_info` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
-  `domain` varchar(200) DEFAULT NULL COMMENT 'target',
-  `cert_type` varchar(200) DEFAULT NULL COMMENT ' ROOT  AUTH   WORKER',
-  `cert` varchar(1000) DEFAULT NULL,
-  `pub_key` varchar(1000) DEFAULT NULL,
-  `pri_key` varchar(1000) DEFAULT NULL,
-  `status` varchar(200) DEFAULT NULL COMMENT ' SUBMIT  PASS  REJECT',
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
-  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UNIQUE_DOMAIN_CERT_TYPE` (`domain`,`cert_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+- 建库建表，[数据库初始化脚本](docs/sql/mpc_init.sql "MPC Init Sql Script")，进入SQL后执行：
+```
+source mpc_init.sql
 ```           
 
-- cert_info证书生成与导入
+- 接入京东的cert_info证书生成与导入
 
-由京东侧完成证书生成，生成sql文件$PROCY_TARGET.sql，由客户侧直接在mysql中执行即可。
+由京东侧完成证书生成，生成sql文件$PROCY_TARGET.sql，由客户侧直接在mysql中执行即可。该条sql中信息包含ca.crt、server_cert.pem、server_private.pem等信息，在proxy组件的部署配置中仍需用到。
 ```
-java -jar ../gen-0.0.1-SNAPSHOT.jar --partys=$PROXY_TARGET,false
-```
-该条sql中信息包含ca.crt、server_cert.pem、server_private.pem等信息，在proxy组件的部署配置中仍需用到。
-
-- auth_info证书生成（非必须）
-只有防盗版worker需要该步骤
-由京东侧完成该步骤。
-
-    - 生成ROOT证书
-    ```
-    curl -H "Content-Type:application/json" -X POST -d '{
-  "commonName": "ROOT",
-  "organizationUnit": "mpc",
-  "organizationName": $PROXY_TARGET,
-  "localityName": "BeiJing",
-  "stateName": "BeiJing",
-  "country": "CN"}'  http://mpc-auth-prodhttp.mpc-9n.svc.lf10.n.jd.local/openapi/initDomain
-
-    ```
-    - 生成AUTH证书
-    ```
-    curl -H "Content-Type:application/json" -X POST -d '{
-  "commonName": "AUTH",
-  "organizationUnit": "mpc",
-  "organizationName": $PROXY_TARGET,
-  "localityName": "BeiJing",
-  "stateName": "BeiJing",
-  "country": "CN"}' http://mpc-auth-prodhttp.mpc-9n.svc.lf10.n.jd.local/openapi/initDomain
-    ```
-    - 证书审批
-    ```
-    curl 'http://mpc-auth-prodhttp.mpc-9n.svc.lf10.n.jd.local/openapi/updateAuthInfoStatus?domain=$PROXY_TARGET&status=PASS'
-    ```
-
-
+source $PROCY_TARGET.sql
+```    
 
 ## 6 fileservice
 - FILESERVICE_IMAGE

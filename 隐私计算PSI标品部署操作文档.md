@@ -140,7 +140,7 @@ kubectl -n ${NAMESPACE} apply -f mysql_service.yaml
 ```
 kubectl -n ${NAMESPACE} get svc
 ```
-![RedisService启动情况](docs/imgs/mysql_service_svc.PNG "Mysql Service Snapshot")，  
+![MySqlService启动情况](docs/imgs/mysql_service_svc.PNG "Mysql Service Snapshot")，  
 
 5. mysql初始化
 

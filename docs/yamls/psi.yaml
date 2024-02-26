@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    name: psi-worker
+  name: psi-worker
+  namespace: $NAMESPACE
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: psi-worker
+  template:
+    metadata:
+      labels:
+        name: psi-worker
+    spec:
+      containers:
+        - image: $PSI_IMAGE
+          imagePullPolicy: IfNotPresent
+          name: psi-worker
+          env:
+          - name: Local_IP
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: status.podIP          
+          ports:
+            - containerPort: 22020
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              cpu: "16"
+              memory: 16Gi
+            requests:
+              cpu: "16"
+              memory: 16Gi
+          volumeMounts:
+            - mountPath: /mnt/data
+              name: data
+            - mountPath: /mnt/logs
+              name: logs
+            - mountPath: /dev/shm
+              name: dshm
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      volumes:
+        - name: data
+          hostPath:
+            path: $VOLUME_DATA
+            type: DirectoryOrCreate
+        - name: logs
+          hostPath:
+            path: $VOLUME_LOGS
+            type: DirectoryOrCreate
+        - name: dshm
+          emptyDir:
+            medium: Memory

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: proxy
+  name: proxy
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: proxy
+  template:
+    metadata:
+      labels:
+        app: proxy
+    spec:
+      containers:
+      - image: $PROXY_IMAGE
+        imagePullPolicy: Always
+        name: proxy
+        resources:
+          limits:
+            cpu: "4"
+            memory: 8Gi
+          requests:
+            cpu: "0.5"
+            memory: 1Gi
+        volumeMounts:
+        - mountPath: /usr/local/openresty/nginx/conf/nginx.conf
+          name: nginx-conf
+          subPath: nginx.conf
+        - mountPath: /usr/local/openresty/nginx/conf/conf.d/mpc-proxy.conf
+          name: mpc-conf
+          subPath: mpc-proxy.conf
+        - mountPath: /usr/local/openresty/nginx/lua_src
+          name: lua-src
+        - mountPath: /cert
+          name: cert
+      hostNetwork: true
+      nodeName: $NODENAME
+      restartPolicy: Always
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: nginx-conf
+        name: nginx-conf
+      - configMap:
+          defaultMode: 420
+          name: mpc-conf
+        name: mpc-conf
+      - configMap:
+          defaultMode: 420
+          name: lua-src
+        name: lua-src
+      - configMap:
+          defaultMode: 420
+          name: cert
+        name: cert

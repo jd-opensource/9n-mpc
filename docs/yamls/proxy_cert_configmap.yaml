@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cert
+  namespace: mpc-chk-test
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    -----END CERTIFICATE-----
+  server_cert.pem: |
+    -----BEGIN CERTIFICATE-----
+    -----END CERTIFICATE-----
+  server_private.pem: |
+    -----BEGIN PRIVATE KEY-----
+    -----END PRIVATE KEY-----

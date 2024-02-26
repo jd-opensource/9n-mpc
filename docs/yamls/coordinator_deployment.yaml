@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: coordinator
+  name: coordinator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: coordinator
+  template:
+    metadata:
+      labels:
+        app: coordinator
+    spec:
+      containers:
+      - image: $COORDINATOR_IMAGE
+        imagePullPolicy: Always
+        name: coordinator
+        volumeMounts:
+        - mountPath: /home/config/application.properties
+          name: coordinator-conf
+          readOnly: true
+          subPath: application.properties
+        - mountPath: /home/config/k8sconfig.yaml
+          name: k8s-conf
+          readOnly: true
+          subPath: k8sconfig.yaml
+        - mountPath: /k8s
+          name: k8s
+        - mountPath: /mnt/logs
+          name: logs
+        resources:
+          limits:
+            cpu: "4"
+            memory: 8Gi
+          requests:
+            cpu: "4"
+            memory: 8Gi
+      restartPolicy: Always
+      volumes:
+      - hostPath:
+          path: $VOLUME_LOGS
+          type: DirectoryOrCreate
+        name: logs
+      - hostPath:
+          path: $VOLUME_DATA
+          type: DirectoryOrCreate
+        name: k8s
+      - configMap:
+          defaultMode: 420
+          name: coordinator-conf
+        name: coordinator-conf
+      - configMap:
+          defaultMode: 420
+          name: k8s-conf
+        name: k8s-conf

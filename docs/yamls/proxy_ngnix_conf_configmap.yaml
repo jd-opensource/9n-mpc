@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: $NGINX_CONF
+data:
+  nginx.conf: |
+    # 设置为nginx的CPU核数
+    worker_processes 8;
+    worker_rlimit_nofile 65535;
+    error_log /usr/local/openresty/nginx/logs/error.log info;
+    worker_shutdown_timeout 1h;
+    
+    events {
+        use epoll;
+    }
+    
+    http {
+        sendfile on;
+        aio threads;
+        aio_write on;
+        directio 8m;
+        tcp_nopush on;
+        tcp_nodelay on;
+    
+        keepalive_timeout 65;
+        keepalive_requests 10000;
+        
+        include /usr/local/openresty/nginx/conf/mime.types;
+        default_type application/octet-stream;
+        lua_package_path "$prefix/lua_src/?.lua;/usr/local/openresty/lualib/resty/?.lua;;";
+         log_format xlog '$http_host $remote_addr $remote_port $remote_user [$time_local] $request_time '
+         '"$request" $status $body_bytes_sent '
+         '"$http_referer" "$http_user_agent" "$http_host" "$http_cookie" '
+         '"$upstream_response_time" $upstream_addr "$http_x_forwarded_for" $scheme '
+         '"$upstream_http_set_cookie"';
+    
+        access_log ./logs/access.log xlog;
+    
+        client_max_body_size 0;
+        client_body_buffer_size 32m;
+    
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+    
+        resolver local=on ipv6=off;
+    
+        include conf.d/mpc-proxy.conf;
+    }

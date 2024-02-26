@@ -12,8 +12,7 @@
 
 ## 2 基础组件
 
-![img.png](img.png)
-
+![img.png](docs/imgs/deploy_arch.png)
 
 <table>
   <tr>

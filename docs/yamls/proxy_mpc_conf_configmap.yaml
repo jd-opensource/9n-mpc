@@ -32,9 +32,6 @@ data:
         grpc_read_timeout 1800s;
         grpc_send_timeout 1800s;
     
-        location /gateway_protocol.Gateway/ {
-            grpc_pass grpc://mpc-zeebe-gateway-test.jd.local:2000;
-        }
     
         location / {
     

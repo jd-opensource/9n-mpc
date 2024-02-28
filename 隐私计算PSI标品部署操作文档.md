@@ -221,7 +221,9 @@ nacos主要用于给coordinator配置信息，由于一些特定的原因，请�
 source nacos_init.sql
 ```
 
-2. [nacos configmap](docs/yamls/nacos_configmap.yaml "Nacos Configmap")
+2. [nacos configmap](docs/yamls/nacos_configmap.yaml "Nacos Configmap")，替换如下配置：
+- MYSQL_USERNAME
+- MYSQL_PASSWORD
 ```
 kubectl -n ${NAMESPACE} apply -f nacos_configmap.yaml
 ```

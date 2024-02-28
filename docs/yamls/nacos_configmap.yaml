@@ -22,8 +22,8 @@ data:
     db.num=1
     ### Connect URL of DB:
     db.url.0=jdbc:mysql://mysql.default.svc.cluster.local:3306/nacos?characterEncoding=utf8&connectTimeout=30000&socketTimeout=30000&autoReconnect=true&useUnicode=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    db.user.0=root
-    db.password.0=123456
+    db.user.0=$MYSQL_USERNAME
+    db.password.0=$MYSQL_PASSWORD
     ### Connection pool configuration: hikariCP
     db.pool.config.connectionTimeout=30000
     db.pool.config.validationTimeout=10000

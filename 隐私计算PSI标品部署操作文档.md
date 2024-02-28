@@ -228,7 +228,8 @@ source nacos_init.sql
 kubectl -n ${NAMESPACE} apply -f nacos_configmap.yaml
 ```
 
-3. [nacos deployment](docs/yamls/nacos_deployment.yaml "Nacos Deployment")
+3. [nacos deployment](docs/yamls/nacos_deployment.yaml "Nacos Deployment")，替换如下配置：
+- NACOS_IMAGE
 ```
 kubectl -n ${NAMESPACE} apply -f nacos_deployment.yaml
 ```

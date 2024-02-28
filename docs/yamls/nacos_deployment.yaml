@@ -30,7 +30,7 @@ spec:
           value: mysql
         - name: PREFER_HOST_MODE
           value: hostname
-        image: jd-mpc-cn-north-1-inner.jcr.service.jdcloud.com/mpcimage/9ntrain:nacos_2.3.0_safe
+        image: $NACOS_IMAGE
         imagePullPolicy: Always
         name: nacos
         resources:

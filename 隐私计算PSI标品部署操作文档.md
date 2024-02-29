@@ -316,7 +316,6 @@ kubectl -n ${NAMESPACE} apply -f coordinator_service.yaml
 ```
 
 
-
 ## 10 PSI
 创建[psi.yaml](docs/yamls/psi.yaml)，替换如下参数：
 - NAMESPACE

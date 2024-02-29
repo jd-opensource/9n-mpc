@@ -1600,8 +1600,14 @@ status:
 nacos主要用来配置coordinator启动需要的文件。将在第9小节中介绍具体配置方式。
 
 ## 9 coordinator
+1. 构建镜像
+- 1.1 在docker目录下 执行 docker  build . -f Dockerfile_base -t  xxxxx
+- 1.2 替换Dockerfile中jd-mpc-cn-north-1-inner.jcr.service.jdcloud.com/mpcimage/9ntrain:coor_base1为xxxxx
+- 1.3 构建项目  执行mvn clean package
+- 1.4 将target目录下的mpc-coordinator-1.0-SNAPSHOT.jar复制到docker目录下
+- 1.5 在docker目录下执行 docker  build . -f Dockerfile_base -t  coordinator镜像名
 
-1. 初始化数据库
+2. 初始化数据库
 
 ```
 use mpc;
@@ -1787,8 +1793,8 @@ CREATE INDEX IDX_QRTZ_FT_TG ON QRTZ_FIRED_TRIGGERS(SCHED_NAME,TRIGGER_GROUP);
 commit;
 ```
 
-2. 配置NACOS信息
-- 2.1  APPLICATION_GROUP
+3. 配置NACOS信息
+- 3.1  APPLICATION_GROUP
     - data_id=application.properties
         - MYSQL_URL
         - MYSQL_USERNAME
@@ -1918,11 +1924,11 @@ target.token.str=X-Token
 target.token=test
 ```
 
-- 2.2 K8S_GROUP
+- 3.2 K8S_GROUP
   - data_id=psi.yaml
 该分组下只有一个配置，即需要配置PSI算子的启动YAML，见第10小节中yaml。
 
-- 2.3 FUNCTOR_GROUP
+- 3.3 FUNCTOR_GROUP
   - data_id=psi.properties
     ```
     tmp-dir=/mnt/tmp
@@ -1932,7 +1938,7 @@ target.token=test
     csv-header=true
     ```
 
-- 2.4 nacos配置
+- 3.4 nacos配置
   - 可以通过浏览器配置
     - 没有网络隔离时采用该种方式，直接打开nacos自带前端页面访问nacos。按以下步骤进行：
       - 创建命名空间$NAMESPACE
@@ -1944,7 +1950,7 @@ target.token=test
     - 可参考配置脚本：nacos_init.sh
 
 
-3. 创建coordinator配置configmap
+4. 创建coordinator配置configmap
 - COORDINATOR_CONF=coordinator-conf
 - NACOS_DOMAIN：请使用本集群上部署的nacos的svc域名
 - NAMESPACE
@@ -1966,7 +1972,7 @@ data:
     nacos.config.local-disk-cache-dir=/k8s/nacos
 ```
 
-4. 创建coordinator的K8S认证configmap
+5. 创建coordinator的K8S认证configmap
 
 - K8S-CONF=k8s-conf
 ```
@@ -2004,7 +2010,7 @@ data:
 
 该项配置是k8s集群的认证信息，用于coordinator起pod时使用。
 
-5. 创建coordinator deployment
+6. 创建coordinator deployment
 - COORDINATOR_IMAGE
 - VOLUME_LOGS
 - VOLUME_DATA
@@ -2071,7 +2077,7 @@ spec:
         name: k8s-conf
 ```
 
-6. 创建coordinator service
+7. 创建coordinator service
 - COORDINATOR_NODE_PORT_OUT=32461
 - COORDINATOR_NODE_PORT_IN=32460
 - COORDINATOR_SERVICE_PORT_OUT=8080

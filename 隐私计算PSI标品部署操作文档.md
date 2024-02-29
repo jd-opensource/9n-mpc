@@ -4,8 +4,8 @@
 ## 1 环境要求
 - [K8S集群](docs/k8s_deploy.md)，用于部署基础组件和隐私计算相关组件
 
-    - 机器操作系统centos7.6-7.9
-    - 机器最低规格8c16g
+  - 机器操作系统centos7.6-7.9
+  - 机器最低规格8c16g
 
 - [NFS云存储](docs/nfs_deploy.md) /PVC，用于存储输入数据、日志和输出数据
 - 公网域名，用于与协作侧进行通信
@@ -109,7 +109,7 @@ kubectl -n ${NAMESPACE} apply -f redis_service.yaml
 ```
 kubectl -n ${NAMESPACE} get svc
 ```
-![RedisService启动情况](docs/imgs/redis_service_svc.PNG "Redis Service Snapshot")，  
+![RedisService启动情况](docs/imgs/redis_service_svc.PNG "Redis Service Snapshot")，
 
 ## 5 mysql
 1. [创建mysql用户名密码secret](docs/yamls/mysql_secret.yaml "Mysql Secret")，替换如下配置：
@@ -139,7 +139,7 @@ kubectl -n ${NAMESPACE} apply -f mysql_service.yaml
 ```
 kubectl -n ${NAMESPACE} get svc
 ```
-![MySqlService启动情况](docs/imgs/mysql_service_svc.png "Mysql Service Snapshot")，  
+![MySqlService启动情况](docs/imgs/mysql_service_svc.png "Mysql Service Snapshot")，
 
 5. mysql初始化
 
@@ -207,7 +207,7 @@ kubectl -n ${NAMESPACE} apply -f proxy_cert_configmap.yaml
 - PROXY_IMAGE
 - NODENAME
 - PROXY_NODE_IP
-部署proxy时通过NODENAME指定部署在固定的节点上，重启proxy时不会改变，与京东侧通信需要给proxy开公网ip端口。若起proxy的节点无法开通公网ip和端口，也可采用svc绑定负载均衡器然后给负载均衡器开公网地址+端口的形式。
+  部署proxy时通过NODENAME指定部署在固定的节点上，重启proxy时不会改变，与京东侧通信需要给proxy开公网ip端口。若起proxy的节点无法开通公网ip和端口，也可采用svc绑定负载均衡器然后给负载均衡器开公网地址+端口的形式。
 ```
 kubectl -n ${NAMESPACE} apply -f proxy_deployment.yaml
 ```
@@ -277,7 +277,7 @@ source coordinator_init.sql
 
 - 2.3 创建和修改 K8S_GROUP，增加[psi.yaml](docs/yamls/psi.yaml)
   - data_id=psi.yaml
-该分组下只有一个配置，即需要配置PSI算子的启动YAML，见第10小节中yaml。
+    该分组下只有一个配置，即需要配置PSI算子的启动YAML，见第10小节中yaml。
 
 - 2.4 创建和修改 FUNCTOR_GROUP，增加[psi.properties](docs/prop/psi.properties)
   - data_id=psi.properties
@@ -316,10 +316,11 @@ kubectl -n ${NAMESPACE} apply -f coordinator_service.yaml
 ```
 
 
+
 ## 10 PSI
 创建[psi.yaml](docs/yamls/psi.yaml)，替换如下参数：
 - NAMESPACE
 - PSI_IMAGE
 - VOLUME_LOGS
 - VOLUME_DATA
-PSI挂载路径需要与fileservice一致，否则会找不到文件。PSI不需要手动启动，在隐私计算平台配置好求交任务点击运行即可。
+  PSI挂载路径需要与fileservice一致，否则会找不到文件。PSI不需要手动启动，在隐私计算平台配置好求交任务点击运行即可。

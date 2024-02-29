@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-conf
+data:
+  k8sconfig.yaml: |+
+    apiVersion: v1
+    clusters:
+    - cluster:
+        server: 
+        insecure-skip-tls-verify: true
+      name: kubernetes
+    contexts:
+    - context:
+        cluster: kubernetes
+        user: basic-authentication
+      name: basic-authentication@kubernetes
+    - context:
+        cluster: kubernetes
+        user: cert-authentication
+      name: cert-authentication@kubernetes
+    current-context: cert-authentication@kubernetes
+    kind: Config
+    preferences: {}
+    users:
+    - name: basic-authentication
+      user:
+        username: kube-admin
+        password: 
+    - name: cert-authentication
+      user:
+        client-certificate-data: 
+        client-key-data:

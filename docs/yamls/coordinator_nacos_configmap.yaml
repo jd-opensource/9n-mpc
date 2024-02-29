@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: $COORDINATOR_CONF
+data:
+  application.properties: |
+    nacos.config.server-addr=$NACOS_DOMAIN
+    nacos.config.remote-first=true
+    nacos.config.data-id=application.properties
+    nacos.config.namespace=$NAMESPACE
+    nacos.config.group=APPLICATION_GROUP
+    nacos.config.type=properties
+    nacos.config.auto-refresh=true
+    nacos.config.local-disk-cache-dir=/k8s/nacos

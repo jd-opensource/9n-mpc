@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: nacos-svc
+  name: nacos-svc
+spec:
+  ports:
+  - name: http
+    nodePort: 30009
+    port: 8848
+    protocol: TCP
+    targetPort: 8848
+  - name: http1
+    nodePort: 31397
+    port: 9848
+    protocol: TCP
+    targetPort: 9848
+  - name: http2
+    nodePort: 30140
+    port: 9555
+    protocol: TCP
+    targetPort: 9555
+  selector:
+    name: nacos
+  sessionAffinity: None
+  type: NodePort
+status:
+  loadBalancer: {}

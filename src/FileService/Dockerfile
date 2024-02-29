@@ -8,7 +8,6 @@ mkdir /app   && \
 mkdir -p /mnt/transfile
 
 COPY /app/redis_client.py  /app/redis_client.py
-COPY /app/orc_pb2.py /app/orc_pb2.py
 COPY start.sh /tmp/start.sh
 COPY /app/file_service.py  /app/file_service.py 
 

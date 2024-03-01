@@ -292,6 +292,11 @@ kubectl -n ${NAMESPACE} apply -f coordinator_nacos_cofigmap.yaml
 
 4. 创建[coordinator K8S configmap](docs/yamls/coordinator_k8s_cofigmap.yaml)，该项配置是k8s集群的认证信息，用于coordinator起pod时使用。替换如下参数：
 - K8S-CONF=k8s-conf
+- K8S_SERVER_URL
+- K8S_USERNAME
+- K8S_PASSWORD
+- K8S_CLIENT_CERTIFICATE_DATA
+- K8S_CLIENT_KEY_DATA
 ```
 kubectl -n ${NAMESPACE} apply -f coordinator_k8s_cofigmap.yaml
 ```

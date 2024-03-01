@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.jd.mpc.domain.task.AuthStatusEnum;
 import com.jd.mpc.domain.task.CertTypeEnum;
 import lombok.Data;
+import org.springframework.stereotype.Component;
 
 import java.util.Date;
 
@@ -14,6 +15,7 @@ import java.util.Date;
  * @Date: 2022/10/9
  */
 @Data
+@Component
 public class AuthInfoDto {
     /** id */
     private Long id;

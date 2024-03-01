@@ -9,7 +9,6 @@ import com.jd.mpc.domain.param.WorkerInfoParam;
 import com.jd.mpc.domain.vo.AuthInfoDto;
 import com.jd.mpc.domain.vo.VerifyVo;
 import com.jd.mpc.grpc.GrpcSignClient;
-import com.jd.mpc.service.AuthInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,7 +28,7 @@ import jakarta.annotation.Resource;
 @RestController
 @RequestMapping("auth")
 public class AuthController {
-    @Resource
+
     private AuthInfoDto authInfoDto;
     @Resource
     private GrpcSignClient signClient;

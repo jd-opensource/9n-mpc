@@ -24,8 +24,6 @@ import static org.springframework.core.env.StandardEnvironment.SYSTEM_PROPERTIES
 /**
  * 启动类
  *
- * @author luoyuyufei1
- * @date 2021/9/22 2:21 下午
  */
 
 @SpringBootApplication

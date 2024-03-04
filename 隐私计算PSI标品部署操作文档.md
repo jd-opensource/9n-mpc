@@ -261,6 +261,7 @@ source coordinator_init.sql
     - 可参考配置脚本：[nacos_init.sh](nacos_init.sh)
 
 - 2.2  创建和修改 APPLICATION_GROUP, 增加data_id为[application.properties](docs/prop/application.properties) 的配置，替换如下配置：
+  - NAMESPACE
   - PROXY_TARGET
   - MYSQL_URL
   - MYSQL_USERNAME

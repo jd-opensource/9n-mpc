@@ -321,6 +321,9 @@ kubectl -n ${NAMESPACE} apply -f coordinator_deployment.yaml
 kubectl -n ${NAMESPACE} apply -f coordinator_service.yaml
 ```
 
+验证是否可以正常通信：
+curl -X GET 'http://COORDINATOR_NODE_IP:8080/coordinator/outer/test/grpc?test=test&target=9n_demo_1'
+
 
 ## 10 PSI
 创建[psi.yaml](docs/yamls/psi.yaml)，替换如下参数：

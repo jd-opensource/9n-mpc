@@ -7,7 +7,7 @@ data:
     apiVersion: v1
     clusters:
     - cluster:
-        server: 
+        server: $K8S_SERVER_URL
         insecure-skip-tls-verify: true
       name: kubernetes
     contexts:
@@ -25,9 +25,9 @@ data:
     users:
     - name: basic-authentication
       user:
-        username: kube-admin
-        password: 
+        username: $K8S_USERNAME
+        password: $K8S_PASSWORD
     - name: cert-authentication
       user:
-        client-certificate-data: 
-        client-key-data:
+        client-certificate-data: $K8S_CLIENT_CERTIFICATE_DATA
+        client-key-data: $K8S_CLIENT_KEY_DATA

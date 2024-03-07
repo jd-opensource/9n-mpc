@@ -261,6 +261,7 @@ source coordinator_init.sql
     - 可参考配置脚本：[nacos_init.sh](nacos_init.sh)
 
 - 2.2  创建和修改 APPLICATION_GROUP, 增加data_id为[application.properties](docs/prop/application.properties) 的配置，替换如下配置：
+  - NAMESPACE
   - PROXY_TARGET
   - MYSQL_URL
   - MYSQL_USERNAME
@@ -292,6 +293,11 @@ kubectl -n ${NAMESPACE} apply -f coordinator_nacos_cofigmap.yaml
 
 4. 创建[coordinator K8S configmap](docs/yamls/coordinator_k8s_cofigmap.yaml)，该项配置是k8s集群的认证信息，用于coordinator起pod时使用。替换如下参数：
 - K8S-CONF=k8s-conf
+- K8S_SERVER_URL：客户端服务地址
+- K8S_USERNAME
+- K8S_PASSWORD
+- K8S_CLIENT_CERTIFICATE_DATA：客户端公钥证书
+- K8S_CLIENT_KEY_DATA：客户端私钥
 ```
 kubectl -n ${NAMESPACE} apply -f coordinator_k8s_cofigmap.yaml
 ```
@@ -314,6 +320,9 @@ kubectl -n ${NAMESPACE} apply -f coordinator_deployment.yaml
 ```
 kubectl -n ${NAMESPACE} apply -f coordinator_service.yaml
 ```
+
+验证是否可以正常通信：
+curl -X GET 'http://COORDINATOR_NODE_IP:8080/coordinator/outer/test/grpc?test=test&target=9n_demo_1'
 
 
 ## 10 PSI

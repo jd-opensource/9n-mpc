@@ -31,7 +31,7 @@ import static org.springframework.core.env.StandardEnvironment.SYSTEM_PROPERTIES
 @EnableRetry
 @EnableNacosConfig(globalProperties = @NacosProperties(serverAddr = "${nacos.config.server-addr}",namespace = "${nacos.config.namespace}"))
 @NacosPropertySource(dataId = "application.properties", groupId = "APPLICATION_GROUP", autoRefreshed = true, first = true)
-public class MpcApplication {
+public class MpcApplication
 
     public static void main(String[] args) {
         System.setProperty("nacos.logging.default.config.enabled", "false");

@@ -4,12 +4,10 @@ import authprotocol.AuthServiceGrpc;
 import fedlearner.app.CheckJoinedDataServiceGrpc;
 import fedlearner.app.SchedulerGrpc;
 import fedlearner.app.StateSynServiceGrpc;
+import io.grpc.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Metadata;
 import io.grpc.stub.MetadataUtils;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -64,9 +62,7 @@ public class GrpcClient {
     private Integer port;
 
     public GrpcClient(String host, int port, String type, String target) {
-
         channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
-
         Metadata metadata = new Metadata();
         if ("sign".equals(type)){
             metadata.put(customHeadKey,"auth");
@@ -76,50 +72,45 @@ public class GrpcClient {
         metadata.put(targetHeadKey, target);
         switch (type) {
             case "offline":
-                offlineStub = MetadataUtils
-                        .attachHeaders(OfflineServiceGrpc.newBlockingStub(channel), metadata)
+                offlineStub = OfflineServiceGrpc.newBlockingStub(channel).withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
                         .withMaxInboundMessageSize(Integer.MAX_VALUE)
                         .withMaxOutboundMessageSize(Integer.MAX_VALUE);
                 break;
             case "sign":
-                authStub = MetadataUtils
-                        .attachHeaders(AuthServiceGrpc.newBlockingStub(channel), metadata)
+                authStub = AuthServiceGrpc.newBlockingStub(channel).withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
                         .withMaxInboundMessageSize(Integer.MAX_VALUE)
                         .withMaxOutboundMessageSize(Integer.MAX_VALUE);
                 break;
             case "outer":
-                outerStub = MetadataUtils
-                        .attachHeaders(OuterServiceGrpc.newBlockingStub(channel), metadata)
+                outerStub = OuterServiceGrpc.newBlockingStub(channel).withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
                         .withMaxInboundMessageSize(Integer.MAX_VALUE)
                         .withMaxOutboundMessageSize(Integer.MAX_VALUE);
                 break;
             case "scheduler":
                 metadata.put(uuidHeadKey,target);
-                schedulerStub = MetadataUtils
-                        .attachHeaders(SchedulerGrpc.newBlockingStub(channel), metadata)
+                schedulerStub = SchedulerGrpc.newBlockingStub(channel).withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
                         .withMaxInboundMessageSize(Integer.MAX_VALUE)
                         .withMaxOutboundMessageSize(Integer.MAX_VALUE);
                 break;
             case "state":
                 metadata.put(uuidHeadKey,target);
-                StateSynStub = MetadataUtils
-                        .attachHeaders(StateSynServiceGrpc.newBlockingStub(channel), metadata)
+                StateSynStub = StateSynServiceGrpc.newBlockingStub(channel).withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
                         .withMaxInboundMessageSize(Integer.MAX_VALUE)
                         .withMaxOutboundMessageSize(Integer.MAX_VALUE);
                 break;
             case "checkPoint":
                 metadata.put(uuidHeadKey,target);
-                checkDataStub = MetadataUtils
-                        .attachHeaders(CheckJoinedDataServiceGrpc.newBlockingStub(channel), metadata)
+                checkDataStub = CheckJoinedDataServiceGrpc.newBlockingStub(channel).withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
                         .withMaxInboundMessageSize(Integer.MAX_VALUE)
                         .withMaxOutboundMessageSize(Integer.MAX_VALUE);
                 break;
             case "predict":
-                predictStub = MetadataUtils
-                        .attachHeaders(ApiServiceGrpc.newBlockingStub(channel), metadata)
+                predictStub = ApiServiceGrpc.newBlockingStub(channel).withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
                         .withMaxInboundMessageSize(Integer.MAX_VALUE)
                         .withMaxOutboundMessageSize(Integer.MAX_VALUE);
                 break;
+            default:
+
         }
 
     }

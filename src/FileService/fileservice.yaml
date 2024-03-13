@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: file-service
+  name: file-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: file-service
+  template:
+    metadata:
+      labels:
+        app: file-service
+    spec:
+      imagePullSecrets:
+      - name: jd-cloud-secret
+      containers:
+      - image:
+        imagePullPolicy: Always
+        name: file-service
+        ports:
+        - containerPort: 8800
+          name: http
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "1"
+            memory: 4Gi
+          requests:
+            cpu: "1"
+            memory: 4Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /mnt/data
+          name: data
+        - mountPath: /mnt/logs
+          name: logs
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      volumes:
+        - name: data
+          hostPath:
+            path: /mnt/cfs/mpc-test/test
+            type: DirectoryOrCreate
+        - name: logs
+          hostPath:
+            path: /mnt/cfs/mpc-test/test
+            type: DirectoryOrCreate
+      tolerations:
+        - key: "cpu-server"
+          operator: "Equal"
+          value: "pre1"
+          effect: "NoSchedule"
+      nodeSelector:
+        mpc: pre1

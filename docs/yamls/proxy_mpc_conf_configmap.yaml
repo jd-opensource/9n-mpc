@@ -1,0 +1,134 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: $MPC_CONF
+data:
+  mpc-proxy.conf: |
+    upstream worker {
+      server 127.0.0.1:10000;
+  
+      balancer_by_lua_block {
+          local balancer = require "ngx.balancer"
+          local ok, err = balancer.set_current_peer(ngx.ctx.ip, ngx.ctx.port)
+          if not ok then
+              ngx.log(ngx.ERR, "failed to set the current peer: ", err)
+              return ngx.exit(ngx.ERROR)
+          end
+      }
+      keepalive 1024;
+      keepalive_timeout 120s;
+      keepalive_requests 10000;
+    }
+
+    server {
+        listen $PROXY_PORT_OUT http2 ssl so_keepalive=on;
+        lua_socket_log_errors off;
+        ssl_certificate /cert/server_cert.pem;
+        ssl_certificate_key /cert/server_private.pem;
+        server_tokens off;
+        proxy_ignore_client_abort on;
+        grpc_socket_keepalive on;
+        grpc_connect_timeout 1800s;
+        grpc_read_timeout 1800s;
+        grpc_send_timeout 1800s;
+    
+    
+        location / {
+    
+            access_by_lua_block {
+                local routein = require "routein"
+                local full_address = routein:route()
+                if full_address == nil or full_address == '' then
+                    ngx.log(ngx.ERR, "can not get address")
+                    return ngx.exit(ngx.ERROR)
+                end
+                local s, e, ip = string.find(full_address, "(.+):", 1)
+                local port_string = string.sub(full_address, e+1)
+                local port = tonumber(port_string)
+                -- ngx.log(ngx.ERR, "backend address: ", full_address)
+                -- ngx.log(ngx.ERR, "ip: ", ip)
+                -- ngx.log(ngx.ERR, "port: ", port)
+                ngx.ctx.ip = ip
+                ngx.ctx.port = port
+            }
+    
+            grpc_pass grpc://worker;
+        }
+    }
+    
+    upstream worker_out {
+        server 127.0.0.1:10000;
+    
+        balancer_by_lua_block {
+            local balancer = require "ngx.balancer"
+            local ok, err = balancer.set_current_peer(ngx.ctx.ip, ngx.ctx.port)
+            if not ok then
+                ngx.log(ngx.ERR, "failed to set the current peer: ", err)
+                return ngx.exit(ngx.ERROR)
+            end
+        }
+        # connection pool
+        # 对外转发，所有的target共用一个pool
+        keepalive 1024;
+        keepalive_timeout 120s;
+        keepalive_requests 10000;
+    }
+    
+    server {
+        listen $PROXY_PORT_IN http2 so_keepalive=on;
+    
+        # This directive can be used to toggle error logging when a failure occurs for the TCP or UDP cosockets. If you are already doing proper error handling and logging in your Lua code, then it is recommended to turn this directive off to prevent data flushing in your nginx error log files (which is usually rather expensive).
+        lua_socket_log_errors off;
+    
+        proxy_ignore_client_abort on;
+        grpc_socket_keepalive on;
+        grpc_connect_timeout 1800s;
+        grpc_read_timeout 1800s;
+        grpc_send_timeout 1800s;
+    
+        # hide version and some token
+        server_tokens off;
+    
+        ## FOR auth service
+        ## Fix send to JD domain
+        location /authprotocol.AuthService/ {
+            grpc_pass grpcs://$PROXY_NODE_IP:$PROXY_PORT_OUT;
+        }
+    
+        ## FOR camunda zeebe service
+        ## Fix send to JD domain
+        location /gateway_protocol.Gateway/ {
+            grpc_pass grpcs://$PROXY_NODE_IP:$PROXY_PORT_OUT;
+        }
+    
+        location / {
+            # ssl
+            grpc_ssl_verify on;
+            grpc_ssl_name $http_target;
+            #grpc_ssl_name $LOCAL_TARGET;
+            grpc_ssl_trusted_certificate /cert/ca.crt;
+            # 启用TLS客户端验证
+            # grpc_ssl_certificate /sslkey/client_cert.pem;
+            # grpc_ssl_certificate_key /sslkey/client_private.pem;
+    
+            access_by_lua_block {
+                local routeout = require "routeout"
+                local full_address = routeout:route()
+                if full_address == nil or full_address == '' then
+                    ngx.log(ngx.ERR, "can not get address")
+                    return ngx.exit(ngx.ERROR)
+                end
+                local s, e, ip = string.find(full_address, "(.+):", 1)
+                local port_string = string.sub(full_address, e+1)
+                local port = tonumber(port_string)
+                -- ngx.log(ngx.ERR, "backend address: ", full_address)
+                -- ngx.log(ngx.ERR, "ip: ", ip)
+                -- ngx.log(ngx.ERR, "port: ", port)
+                ngx.ctx.ip = ip
+                ngx.ctx.port = port
+            }
+    
+            grpc_pass grpcs://worker_out;
+        }
+    }
+

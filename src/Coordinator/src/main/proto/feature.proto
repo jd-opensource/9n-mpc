@@ -1,0 +1,53 @@
+syntax = "proto3";
+//package example;
+option java_multiple_files = true;
+option java_package = "feature";
+
+
+service FeatureEngineering {   //定义服务,用在rpc传输中
+  rpc getDetail(GrpcDetailRequest) returns (GrpcDetailResponse);
+  rpc sendEncryptedTarget (stream EncryptedTarget) returns (sendResponse);
+  rpc sendIvMidValue (stream IvMidValue) returns (sendResponse);
+  rpc sendPearsonMidValue (stream PearsonMidValue) returns (sendResponse);
+  rpc sendBytesObject (bytesObject) returns (sendResponse);
+}
+
+
+message GrpcDetailRequest {
+}
+
+
+message featureList{
+   repeated string         feature = 1;
+}
+
+message GrpcDetailResponse{
+  map<string, float> pearson_score = 1;
+  map<string, float>      iv_score = 2;
+  string                       msg = 3;
+  int64                     status = 4;
+}
+
+message EncryptedTarget{
+  bytes          encrypted_target = 1;
+  string                      msg = 2;
+}
+
+message sendResponse{
+  string                      msg = 1;
+}
+
+message IvMidValue{
+  map<string, bytes>   sum_target = 1;
+  string                      msg = 2;
+}
+
+message PearsonMidValue{
+  map<string, bytes> mean_and_var = 1;
+  string                      msg = 2;
+}
+
+message bytesObject{
+  bytes                      file = 1;
+  string                      msg = 2;
+}

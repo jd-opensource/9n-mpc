@@ -46,6 +46,16 @@ def calcucipher_and_send(array, batch, ctx, lctx):
     batch_index = 0
     is_last_batch = False
 
+    if len(array) == 0:
+        lctx_send_proto(lctx, ecdh_psi_pb2.EcdhPsiCipherBatch(
+            type="enc",
+            batch_index=0,
+            is_last_batch=True,
+            count=0,
+            ciphertext=b''
+        ))
+        return
+
     for i in range(0, len(array), batch):
         arr = array[i:i+batch]
         count = len(arr)
@@ -69,7 +79,7 @@ def calcucipher_and_send(array, batch, ctx, lctx):
 
 def recv_and_calcu(ctx, lctx, prcess):
     done = False
-    while done != True:
+    while not done:
         protomsg = lctx_recv_proto(lctx, ecdh_psi_pb2.EcdhPsiCipherBatch)
         if protomsg.is_last_batch:
             done = True
@@ -108,6 +118,7 @@ def diffie_hellman_flow(psi_in: pa.RecordBatch, ctx: Context, lctx):
         task.join()
 
     if ctx.need_recv_cipher:
-        return psi_in.take(store.local_take_index)
+        local_take_index = pa.array(store.local_take_index, type=pa.int64())
+        return psi_in.take(local_take_index)
 
     return None

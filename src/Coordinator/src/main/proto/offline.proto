@@ -1,0 +1,159 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "offline";
+import "service.proto";
+package app;
+
+/**
+ * 离线任务grpc服务定义
+ */
+service OfflineService {
+
+  /**
+   * 同步任务
+   */
+  rpc syncJobJson (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+
+  /**
+   * 同步阶段任务
+   */
+  rpc syncJobList (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+
+  /**
+   * 提交任务
+   */
+  rpc commit (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+
+  /**
+   * 任务是否结束
+   */
+  rpc isFinished (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+
+  /**
+   * 结束任务
+   */
+  rpc finishTask (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+
+  /**
+   * 删除任务
+   */
+  rpc stopTask (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+
+  /**
+   * 删除任务
+   */
+  rpc queryTask (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+
+  /**
+   * 得到已完成的最大的子任务id
+   */
+  rpc getMaxCompletedTaskId (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+  /**
+   * 得到目标侧任务信息
+   */
+  rpc getChidTasks (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+
+  /**
+  任务error
+   */
+  rpc errorAll(GrpcOfflineRequest) returns (GrpcOfflineResponse){
+  }
+
+  /**
+  获得pod信息
+   */
+  rpc getPodInfo(GrpcOfflineRequest) returns (GrpcOfflineResponse){
+  }
+
+  /**
+  评估pod资源
+ */
+  rpc evalPodResource(GrpcOfflineRequest) returns (GrpcOfflineResponse){
+  }
+
+  /**
+  处理pod资源
+  */
+  rpc handlePodResource(GrpcOfflineRequest) returns (GrpcOfflineResponse){
+  }
+  /**
+   * 测试
+   */
+  rpc test (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+
+  /**
+   * 心跳
+   */
+  rpc heartBeat (GrpcOfflineRequest) returns (GrpcOfflineResponse) {
+  }
+
+}
+
+
+message GrpcTask{
+  string id = 1;
+  int32 podNum = 2;
+  string name = 3;
+  int32 subId = 4;
+  int32 status = 5;
+  string type = 6;
+  string target = 7;
+  int32 cpu = 8;
+  int32 memory = 9;
+  map<string, string> parameters = 10;
+}
+
+message taskInfo{
+  string code = 1;
+}
+
+message Stage{
+  string type = 1;
+  app.BatchRequest batchRequest = 2;
+  string target = 3;
+  taskInfo taskInfo = 4;
+}
+message StageList{
+  repeated Stage stage = 1;
+}
+
+message CompiledJob{
+  string JobID = 1;
+  repeated StageList stages = 2;
+}
+
+message GrpcOfflineRequest {
+  string id = 1;
+  int32 subId = 2;
+  int32 taskType = 3;
+  string jobJson = 4;
+  string test = 5;
+  string jobDistributorSign = 6;
+  string jobDistributorCert = 7;
+}
+
+
+message  GrpcOfflineResponse {
+  bool flag = 1;
+  int32 subId = 2;
+  int32 maxIndex = 3;
+  string message = 4;
+  string test = 5;
+  string res = 6;
+  string jobExecutorSign = 7;
+  string jobExecutorCert = 8;
+  bool signVerify = 9;
+}
+
+

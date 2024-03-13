@@ -1,6 +1,0 @@
-recursive-include * *.so
-recursive-include * *.so.[0-9]
-recursive-include * *.dylib
-recursive-include * *.dll
-recursive-include * *.lib
-recursive-include * *.sh

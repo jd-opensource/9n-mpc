@@ -1,0 +1,55 @@
+FROM debian:bullseye-slim
+# build jd-mpc-cn-north-1-inner.jcr.service.jdcloud.com/mpcimage/9ntrain:coor_base
+
+## OpenJDK 8
+
+RUN set -eux; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+# utilities for keeping Debian and OpenJDK CA certificates in sync
+		ca-certificates p11-kit \
+	; \
+	rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME /usr/local/openjdk-17
+RUN { echo '#/bin/sh'; echo 'echo "$JAVA_HOME"'; } > /usr/local/bin/docker-java-home && chmod +x /usr/local/bin/docker-java-home && [ "$JAVA_HOME" = "$(docker-java-home)" ] # backwards compatibility
+ENV PATH $JAVA_HOME/bin:$PATH
+
+ENV LANG C.UTF-8
+ENV JAVA_VERSION 8u345
+
+RUN set -eux; \
+	\
+	arch="$(dpkg --print-architecture)"; \
+	case "$arch" in \
+		'amd64') \
+			downloadUrl='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz'; \
+			;; \
+		*) echo >&2 "error: unsupported architecture: '$arch'"; exit 1 ;; \
+	esac; \
+	\
+	savedAptMark="$(apt-mark showmanual)"; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		dirmngr \
+		gnupg \
+		wget \
+	; \
+	rm -rf /var/lib/apt/lists/*; \
+	\
+	wget --progress=dot:giga -O openjdk.tgz "$downloadUrl"; \
+	\
+	mkdir -p "$JAVA_HOME"; \
+	tar --extract \
+		--file openjdk.tgz \
+		--directory "$JAVA_HOME" \
+		--strip-components 1 \
+		--no-same-owner \
+	; \
+	rm openjdk.tgz*; \
+	\
+# basic smoke test
+	javac -version; \
+	java -version
+
+

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jd.mpc.mapper.CertMapper">
+  <resultMap id="BaseResultMap" type="com.jd.mpc.domain.cert.CertInfo">
+
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="cert_content" jdbcType="VARCHAR" property="certContent" />
+    <result column="public_exponent" jdbcType="VARCHAR" property="publicExponent" />
+    <result column="private_exponent" jdbcType="VARCHAR" property="privateExponent" />
+    <result column="modulus" jdbcType="VARCHAR" property="modulus" />
+    <result column="is_root" jdbcType="TINYINT" property="isRoot" />
+    <result column="create_at" jdbcType="TIMESTAMP" property="createAt" />
+    <result column="update_at" jdbcType="TIMESTAMP" property="updateAt" />
+    <result column="is_deleted" jdbcType="TINYINT" property="isDeleted" />
+  </resultMap>
+
+</mapper>

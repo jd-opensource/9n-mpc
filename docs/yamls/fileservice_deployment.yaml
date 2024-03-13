@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: file-service
+  labels:
+    app: file-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: file-service
+  template:
+    metadata:
+      labels:
+        app: file-service
+    spec:
+      containers:
+        - name: file-service
+          image: $FILESERVICE_IMAGE
+          ports:
+            - containerPort: $FILESERVICE_PORT
+          env:
+            - name: REDIS_HOST
+              value: $REDIS_SERVICE_IP
+            - name: REDIS_PORT
+              value: REDIS_SERVICE_PORT
+            - name: REDIS_PASSWORD
+              value: $REDIS_PASSWORD
+          volumeMounts:
+            - name: file-data
+              mountPath: /mnt/data
+            - name: logs
+              mountPath: /mnt/logs
+      volumes:
+        - name: logs
+          hostPath:
+            path: $VOLUME_LOGS
+            type: DirectoryOrCreate
+        - name: file-data
+          hostPath:
+            path: $VOLUME_DATA
+            type: DirectoryOrCreate

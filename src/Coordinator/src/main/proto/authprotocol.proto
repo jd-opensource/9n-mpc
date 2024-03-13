@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package authprotocol;
+option java_multiple_files = true;
+option java_package = "authprotocol";
+
+service AuthService{
+  rpc verify(VerifyGrpcParam)returns (GrpcVo){};
+  rpc issueCert(IssueGrpcParam) returns(GrpcVo){};
+}
+
+message IssueGrpcParam{
+  //public key
+  bytes key = 1;
+  string commonName = 2;
+  string organization = 3;
+}
+
+message VerifyGrpcVo{
+  string cert = 1;
+  string sig = 2;
+  string data = 3;
+}
+
+message VerifyGrpcParam{
+  string cert = 1;
+  string sig = 2;
+  string data = 3;
+}
+
+message GrpcVo{
+  //  是否校验通过 status 0 :成功  非0: 失败
+  uint32 status = 1;
+  //  错误信息
+  string err_msg = 2;
+  // 序列化信息
+  bytes result = 3;
+}

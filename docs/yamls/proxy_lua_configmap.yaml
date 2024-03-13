@@ -1,0 +1,215 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lua-src
+data:
+  redis.lua: |
+    local redis = require "resty.redis"
+
+    local _M = {
+        _VERSION = '0.0.1',
+        m_host = $REDIS_SERVICE_IP,
+        m_port = $REDIS_SERVICE_PORT,
+        m_password = $REDIS_PASSWORD,
+    }
+    
+    function _M.new(self)
+        local red = redis:new()
+        red:set_timeouts(1000, 1000, 1000)
+    
+        --ngx.log(ngx.INFO, "select redis addr: ", host, port)
+        local ok, err = red:connect(self.m_host, self.m_port)
+        if not ok then
+            ngx.log(ngx.ERR, "failed to connect: ", err)
+            return err
+        end
+        -- auth
+        if self.m_password ~= nil and self.m_password ~= '' then
+            local count
+            count, err = red:get_reused_times()
+            if 0 == count then
+                ok, err = red:auth(self.m_password)
+                if not ok then
+                    ngx.log(ngx.ERR, "failed to auth: ", err)
+                    red:close()
+                    return err
+                end
+           elseif err then
+                ngx.log(ngx.ERR"failed to get reused times: ", err)
+                red:close()
+                return err
+           end
+        end
+        return red
+    end
+    
+    function _M.get(self,key)
+        local index = 0
+        local err = nil
+        local res
+        local red = self:new()
+        repeat
+            res, err = red:get(key)
+            if err ~= nil then
+                index = index + 1
+            else
+                err = nil
+                break
+            end
+        until (index > 2)
+        if err ~= nil then
+            ngx.log(ngx.ERR, "failed to get redis value of ", key, ":", err)
+            return nil, err
+        end
+    
+        if res == ngx.null or res == '' then
+            err = "redis value is not exist"
+            ngx.log(ngx.ERR, err)
+            return nil, err
+        end
+      -- close
+        red:close()
+        return res, nil
+    end
+    
+    return _M
+  routein.lua: |
+    
+    local MAX_ADDR_NUM = 2000
+    local redis = require "redis"
+    
+    local _M = {
+        _VERSION = '0.0.1',
+        t_addr = {},
+        t_history = {},
+        t_size = 0,
+    }
+    
+    function _M.get(self, key)
+        local value = self.t_addr[key]
+        if value ~= nil then
+            return value
+        end
+    
+        value = self.t_history[key]
+        if value ~= nil then
+            if self.t_size > MAX_ADDR_NUM then
+                self.t_history = self.t_addr
+                self.t_addr = {}
+                self.t_size = 0
+            end
+            self.t_addr[key] = value
+            self.t_size = self.t_size + 1
+            return value
+        end
+    
+        local err
+        value,err = redis:get(key)
+        if value == nil or err ~= nil then
+            ngx.log(ngx.ERR, "Get id: ", key, " from redis fail!  reson is :", err)
+            return nil
+        end
+    
+        if self.t_size > MAX_ADDR_NUM then
+            self.t_history = self.t_addr
+            self.t_addr = {}
+            self.t_size = 0
+        end
+        self.t_addr[key] = value
+        self.t_size = self.t_size + 1
+    
+        return value
+    end
+    
+    function _M.get_uuid()
+        local uuid = "network:"..ngx.var.http_id
+        if uuid == nil then
+            ngx.log(ngx.ERR, "get uuid fail! uri is : ", ngx.var.uri)
+            return nil
+        end
+        ngx.log(ngx.INFO, "get uuid success, uuid is ", uuid)
+        return uuid
+    end
+    
+    function _M.route(self)
+        local uuid = self.get_uuid()
+        if uuid == nil then
+            ngx.log(ngx.ERR, "Get uuid fail!")
+            return nil
+        end
+    
+        local remote_addr = self:get(uuid)
+        return remote_addr
+    end
+    
+    return _M
+  routeout.lua: |
+    
+    local MAX_ADDR_NUM = 2000
+    local redis = require "redis"
+    
+    local _M = {
+        _VERSION = '0.0.1',
+        t_addr = {},
+        t_history = {},
+        t_size = 0,
+    }
+    
+    function _M.get(self, key)
+        local value = self.t_addr[key]
+        if value ~= nil then
+            return value
+        end
+    
+        value = self.t_history[key]
+        if value ~= nil then
+            if self.t_size > MAX_ADDR_NUM then
+                self.t_history = self.t_addr
+                self.t_addr = {}
+                self.t_size = 0
+            end
+            self.t_addr[key] = value
+            self.t_size = self.t_size + 1
+            return value
+        end
+    
+        local err
+        value,err = redis:get(key)
+        if value == nil or err ~= nil then
+            ngx.log(ngx.ERR, "Get id: ", key, " from redis fail!  reson is :", err)
+            return nil
+        end
+    
+        if self.t_size > MAX_ADDR_NUM then
+            self.t_history = self.t_addr
+            self.t_addr = {}
+            self.t_size = 0
+        end
+        self.t_addr[key] = value
+        self.t_size = self.t_size + 1
+    
+        return value
+    end
+    
+    function _M.get_uuid()
+        local uuid = "target:"..ngx.var.http_target
+        if uuid == nil then
+            ngx.log(ngx.ERR, "get target fail! uri is : ", ngx.var.uri)
+            return nil
+        end
+        ngx.log(ngx.INFO, "get target success, target is ", uuid)
+        return uuid
+    end
+    
+    function _M.route(self)
+        local uuid = self.get_uuid()
+        if uuid == nil then
+            ngx.log(ngx.ERR, "Get uuid fail!")
+            return nil
+        end
+    
+        local remote_addr = self:get(uuid)
+        return remote_addr
+    end
+    
+    return _M

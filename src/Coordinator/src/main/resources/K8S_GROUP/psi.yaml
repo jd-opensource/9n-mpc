@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    name: psi-worker
+  name: psi-worker
+  namespace: test-cu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: psi-worker
+  template:
+    metadata:
+      labels:
+        name: psi-worker
+    spec:
+      imagePullSecrets:
+        - name: jd-cloud-secret
+      containers:
+        #         - image: mirror.jd.com/slab/multi-party-psi:master
+        # - image: jd-mpc-cn-north-1-inner.jcr.service.jdcloud.com/mpcimage/9ntrain:psi-worker_9n_demo_3_v3-dev-dbf2c85
+        - image: jd-mpc-cn-north-1-inner.jcr.service.jdcloud.com/mpcimage/9ntrain:interconnection_psi_v1_inter
+          #        - image: jd-mpc-cn-north-1-inner.jcr.service.jdcloud.com/mpcimage/9ntrain:9NFL-Vertical-RayPir1.1_py3.10-9n_demo_3-Dev-20230911
+          imagePullPolicy: Always
+          name: psi-worker
+          env:
+            #          - name: RUST_LOG
+            #            value: "debug"
+            #          - name: RUST_BACKTRACE
+            #            value: "full"
+            - name: Local_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+          ports:
+            - containerPort: 22020
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              cpu: "16"
+              memory: 16Gi
+            requests:
+              cpu: "16"
+              memory: 16Gi
+          volumeMounts:
+            - mountPath: /mnt/data
+              name: data
+            - mountPath: /mnt/logs
+              name: logs
+            - name: software
+              mountPath: /software
+            - name: data0
+              mountPath: /data0
+            - mountPath: /dev/shm
+              name: dshm
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      volumes:
+        - name: data
+          hostPath:
+            path: /mnt/cfs/mpc-test/test
+            type: DirectoryOrCreate
+        - name: logs
+          hostPath:
+            path: /mnt/cfs/mpc-test/test
+            type: DirectoryOrCreate
+        - hostPath:
+            path: /data/bdp_client/software
+          name: software
+        - hostPath:
+            path: /data/bdp_client/data0
+          name: data0
+        - name: dshm
+          emptyDir:
+            medium: Memory
+      tolerations:
+        - key: "cpu-server"
+          operator: "Equal"
+          value: "pre1"
+          effect: "NoSchedule"
+      nodeSelector:
+        mpc: pre1
+
+

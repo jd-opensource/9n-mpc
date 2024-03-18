@@ -5,6 +5,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import com.jd.mpc.common.config.MpcConfigService;
 import jakarta.annotation.Resource;
 
 import com.alibaba.nacos.api.annotation.NacosInjected;
@@ -104,8 +105,8 @@ public class ParaCompiler {
 
     @Autowired
     private List<ITaskService> taskServices;
-    @NacosInjected
-    private ConfigService configService;
+    @Resource
+    private MpcConfigService mpcConfigService;
 
     public Job compileList(List<PreJob> preJobs) {
         Job job;
@@ -1642,7 +1643,7 @@ public class ParaCompiler {
         if (taskType == null){
             //为了支持调试,无需缓存
             try {
-                String config = configService.getConfig(preJob.getType() + ".properties", CommonConstant.DEFAULT_GROUP, 5000);
+                String config = mpcConfigService.getConfig(preJob.getType() + ".properties", CommonConstant.DEFAULT_GROUP, 5000);
                 if (config == null){
                     throw new CommonException("nacos default config of "+preJob.getType()+" is null!");
                 }

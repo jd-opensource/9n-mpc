@@ -1,40 +1,34 @@
 package com.jd.mpc.service;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import io.fabric8.kubernetes.client.KubernetesClient;
-import jakarta.annotation.Resource;
-
-import com.alibaba.nacos.api.annotation.NacosInjected;
-import com.alibaba.nacos.api.config.ConfigService;
+import com.jd.mpc.common.config.MpcConfigService;
 import com.jd.mpc.common.constant.CommonConstant;
-import com.jd.mpc.common.util.CommonUtils;
-import io.fabric8.kubernetes.api.model.*;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.jd.mpc.common.constant.DeploymentPathConstant;
 import com.jd.mpc.common.enums.TaskStatusEnum;
 import com.jd.mpc.common.enums.TaskTypeEnum;
 import com.jd.mpc.common.response.CommonException;
 import com.jd.mpc.domain.offline.commons.OfflineTask;
 import com.jd.mpc.domain.offline.commons.SubTask;
-
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 参数解析
@@ -52,8 +46,10 @@ public class PodFactory {
     @Resource
     private TaskPersistenceService taskPersistenceService;
 
-    @NacosInjected
-    private ConfigService configService;
+    @Resource
+    private MpcConfigService mpcConfigService;
+
+
 
     @Transactional
     public void createPodList(SubTask subTask, KubernetesClient k8sClient) {
@@ -79,9 +75,9 @@ public class PodFactory {
         try {
             String yaml;
             if (taskType == null) {
-                yaml = configService.getConfig(offlineTask.getDeploymentPath(), CommonConstant.DEFAULT_GROUP, 10000);
+                yaml = mpcConfigService.getConfig(offlineTask.getDeploymentPath(), CommonConstant.DEFAULT_GROUP, 10000);
             }else {
-                yaml = configService.getConfig(offlineTask.getDeploymentPath(), CommonConstant.K8S_GROUP, 10000);
+                yaml = mpcConfigService.getConfig(offlineTask.getDeploymentPath(), CommonConstant.K8S_GROUP, 10000);
             }
             deployment = de.load(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8))).item();
         }catch (Exception e){
@@ -90,7 +86,7 @@ public class PodFactory {
         }
         PodSpec spec = deployment.getSpec().getTemplate().getSpec();
         this.defaultDeployment(spec, offlineTask, env, deployment, clusterId, de);
-        if (!org.apache.commons.lang3.StringUtils.isBlank(offlineTask.getServiceName())) {
+        if (!StringUtils.isBlank(offlineTask.getServiceName())) {
             Service service = k8sClient.services().load(K8sService.class.getResourceAsStream(offlineTask.getServicePath())).get();
             service.getMetadata().setNamespace(namespace);
             service.getMetadata().setName(offlineTask.getServiceName());

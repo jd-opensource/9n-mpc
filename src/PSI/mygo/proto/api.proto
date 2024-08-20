@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package api;
+
+import "google/protobuf/any.proto";
+
+message RequestHeader {
+    string request_id = 1;                
+    map<string,google.protobuf.Any> metadata = 2; 
+}
+
+message ResultHeader {
+    string request_id = 1;               
+    map<string,google.protobuf.Any> metadata = 2; 
+
+    int32 code = 3;                       
+    string msg = 4;                       
+}
+
+message PsiExecuteRequest {
+    RequestHeader header = 1;
+
+    repeated bytes keys = 9;
+}
+
+message PsiExecuteResult {
+    ResultHeader header = 1;
+
+    repeated bytes keys = 9;
+}
+
+
+service ExecuteService {
+    rpc PsiExecute (PsiExecuteRequest) returns (PsiExecuteResult) {}
+
+    rpc PsiStreamExecute (stream PsiExecuteRequest) returns (stream PsiExecuteResult) {}
+}

@@ -19,13 +19,16 @@ use crate::front::err::AppError;
 use futures::StreamExt;
 use std::iter::Iterator;
 use std::mem::transmute;
-use tonic::{metadata::MetadataValue, transport::Channel};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tonic::{metadata::MetadataValue, transport::Channel, Status};
 
 pub struct Client {
     curve: Curve,
-    client: ExecuteServiceClient<Channel>,
+    client: Arc<RwLock<ExecuteServiceClient<Channel>>>,
     target: String,
     id: String,
+    remote: String,
 }
 
 impl Client {
@@ -35,14 +38,34 @@ impl Client {
         target: String,
         id: String,
     ) -> Result<Client, AppError> {
-        let client = ExecuteServiceClient::connect(remote.clone()).await?;
+        let client = Arc::new(RwLock::new(
+            ExecuteServiceClient::connect(remote.clone()).await?,
+        ));
 
         Ok(Client {
             curve,
             client,
             target,
             id,
+            remote,
         })
+    }
+
+    async fn retry_connect(&self, status: &Status) {
+        if status.code() == tonic::Code::Unavailable {
+            let no_creating_client = self.client.try_write();
+            if no_creating_client.is_err() {
+                return;
+            } else {
+                let conn = ExecuteServiceClient::connect(self.remote.clone()).await;
+                if conn.is_err() {
+                    tracing::error!("reconnect to remote failed");
+                } else {
+                    *no_creating_client.unwrap() = conn.unwrap();
+                    tracing::info!("reconnect to remote success");
+                }
+            }
+        }
     }
 }
 
@@ -62,9 +85,12 @@ impl Client {
             .metadata_mut()
             .insert("target", MetadataValue::try_from(&self.target)?);
 
-        match self.client.clone().psi_execute(request).await {
+        match self.client.read().await.clone().psi_execute(request).await {
             Ok(resp) => Ok(resp.into_inner()),
-            Err(e) => Err(AppError::from(e)),
+            Err(e) => {
+                self.retry_connect(&e).await;
+                Err(AppError::from(e))
+            }
         }
     }
 
@@ -90,9 +116,12 @@ impl Client {
             .metadata_mut()
             .insert("target", MetadataValue::try_from(&self.target)?);
 
-        match self.client.clone().psi_execute(request).await {
+        match self.client.read().await.clone().psi_execute(request).await {
             Ok(resp) => Ok(resp.into_inner()),
-            Err(e) => Err(AppError::from(e)),
+            Err(e) => {
+                self.retry_connect(&e).await;
+                Err(AppError::from(e))
+            }
         }
     }
 
@@ -115,6 +144,8 @@ impl Client {
 
             let response = self
                 .client
+                .read()
+                .await
                 .clone()
                 .psi_stream_execute(requests_stream)
                 .await?;

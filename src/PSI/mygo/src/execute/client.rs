@@ -21,7 +21,11 @@ use std::iter::Iterator;
 use std::mem::transmute;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tonic::{metadata::MetadataValue, transport::Channel, Status};
+use tonic::{
+    metadata::MetadataValue,
+    transport::{Channel, Endpoint},
+    Status,
+};
 
 pub struct Client {
     curve: Curve,
@@ -32,15 +36,21 @@ pub struct Client {
 }
 
 impl Client {
+    async fn create_client(remote: String) -> Result<ExecuteServiceClient<Channel>, AppError> {
+        let conn = Endpoint::new(remote)?.connect().await?;
+
+        Ok(ExecuteServiceClient::new(conn)
+            .max_decoding_message_size(usize::max_value())
+            .max_encoding_message_size(usize::max_value()))
+    }
+
     pub async fn new(
         curve: Curve,
         remote: String,
         target: String,
         id: String,
     ) -> Result<Client, AppError> {
-        let client = Arc::new(RwLock::new(
-            ExecuteServiceClient::connect(remote.clone()).await?,
-        ));
+        let client = Arc::new(RwLock::new(Client::create_client(remote.clone()).await?));
 
         Ok(Client {
             curve,
@@ -57,7 +67,7 @@ impl Client {
             if no_creating_client.is_err() {
                 return;
             } else {
-                let conn = ExecuteServiceClient::connect(self.remote.clone()).await;
+                let conn = Client::create_client(self.remote.clone()).await;
                 if conn.is_err() {
                     tracing::error!("reconnect to remote failed");
                 } else {

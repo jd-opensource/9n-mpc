@@ -82,10 +82,13 @@ impl ExecuteEngine {
         let server_curve = Curve::new(key.as_bytes(), &curve);
         let exit_sig2 = exit_sig.clone();
         let _ = spawn(async move {
+            let service = ExecuteServiceServer::new(ExecuteServiceImpl::new(server_curve));
             let grpc_service = tonic::transport::Server::builder()
-                .add_service(ExecuteServiceServer::new(ExecuteServiceImpl::new(
-                    server_curve,
-                )))
+                .add_service(
+                    service
+                        .max_decoding_message_size(usize::max_value())
+                        .max_encoding_message_size(usize::max_value()),
+                )
                 .into_service();
             let builder = hyper::Server::bind(&SocketAddr::from_str(&host).unwrap());
 

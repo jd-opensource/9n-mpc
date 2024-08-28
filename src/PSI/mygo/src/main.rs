@@ -21,7 +21,7 @@ mod policy;
 use crate::execute::ExecuteEngine;
 use crate::front::{do_psi, AppStateDyn};
 use crate::policy::{BatcherPolicyConf, PolicyConf};
-use axum::{routing::post, Router};
+use axum::{extract::DefaultBodyLimit, routing::post, Router};
 use clap::Parser;
 // use num_cpus;
 use rand::distributions::Alphanumeric;
@@ -150,6 +150,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/psi", post(do_psi))
+        .layer(DefaultBodyLimit::max(usize::max_value()))
         .with_state(state.clone());
 
     let listener = TcpListener::bind(args.host).await.unwrap();

@@ -33,6 +33,7 @@ use std::sync::Arc;
 use tokio::spawn;
 use tokio::sync::Notify;
 use tokio::time::{sleep, Duration};
+use tonic::transport::{Identity, Server, ServerTlsConfig};
 
 pub struct ExecuteEngine {
     client: Arc<Client>,
@@ -57,6 +58,8 @@ impl ExecuteEngine {
         redis_address: String,
         redis_password: String,
         policy_conf: PolicyConf,
+        use_tls: bool,
+        cert_path: String,
     ) -> Result<Self, AppError> {
         //for debug
         if !redis_address.is_empty() {
@@ -81,36 +84,62 @@ impl ExecuteEngine {
         let exit_sig = Arc::new(Notify::new());
         let server_curve = Curve::new(key.as_bytes(), &curve);
         let exit_sig2 = exit_sig.clone();
+        let cert_path2 = cert_path.clone();
         let _ = spawn(async move {
             let service = ExecuteServiceServer::new(ExecuteServiceImpl::new(server_curve));
-            let grpc_service = tonic::transport::Server::builder()
-                .add_service(
-                    service
-                        .max_decoding_message_size(usize::max_value())
-                        .max_encoding_message_size(usize::max_value()),
-                )
-                .into_service();
-            let builder = hyper::Server::bind(&SocketAddr::from_str(&host).unwrap());
+            let mut builder = tonic::transport::Server::builder();
 
-            let make_grpc_service = make_service_fn(move |_conn| {
-                let grpc_service = grpc_service.clone();
-                async { Ok::<_, Infallible>(grpc_service) }
-            });
+            if use_tls {
+                let dir = std::path::PathBuf::from(cert_path2);
+                let cert = std::fs::read_to_string(dir.join("server.pem")).unwrap();
+                let key = std::fs::read_to_string(dir.join("server.key")).unwrap();
 
-            builder
-                .serve(make_grpc_service)
-                .with_graceful_shutdown(async {
-                    exit_sig2.notified().await;
-                })
-                .await
-                .expect("Error with HTTP server!");
+                let identity = Identity::from_pem(cert, key);
+                builder = builder
+                    .tls_config(ServerTlsConfig::new().identity(identity))
+                    .unwrap();
+            }
+
+            let grpc_service = builder.add_service(
+                service
+                    .max_decoding_message_size(usize::max_value())
+                    .max_encoding_message_size(usize::max_value()),
+            );
+            // .into_service();
+            let addr = host.parse().unwrap();
+            let _ = grpc_service.serve(addr).await;
+
+            // let builder = hyper::Server::bind(&SocketAddr::from_str(&host).unwrap());
+
+            // let make_grpc_service = make_service_fn(move |_conn| {
+            //     let grpc_service = grpc_service.clone();
+            //     async { Ok::<_, Infallible>(grpc_service) }
+            // });
+
+            // builder
+            //     .serve(make_grpc_service)
+            //     .with_graceful_shutdown(async {
+            //         exit_sig2.notified().await;
+            //     })
+            //     .await
+            //     .expect("Error with HTTP server!");
+
             exit_sig2.notify_waiters();
         });
 
         //for debug
         let _ = sleep(Duration::from_secs(1)).await;
-        let client =
-            Arc::new(Client::new(Curve::new(key.as_bytes(), &curve), remote, target, id).await?);
+        let client = Arc::new(
+            Client::new(
+                Curve::new(key.as_bytes(), &curve),
+                remote,
+                target,
+                id,
+                use_tls,
+                cert_path,
+            )
+            .await?,
+        );
 
         let policy = Policy::new(&policy_conf, client.clone()).await?;
 

@@ -30,6 +30,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::signal;
+use tracing_appender::rolling::{daily, RollingFileAppender};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Parser, Debug, Serialize, Deserialize)]
@@ -40,11 +41,11 @@ struct Args {
     key: String,
 
     /// id
-    #[clap(long)]
+    #[clap(long, default_value = "")]
     id: String,
 
     /// domain
-    #[clap(long)]
+    #[clap(long, default_value = "")]
     domain: String,
 
     /// host
@@ -52,7 +53,7 @@ struct Args {
     host: String,
 
     /// target
-    #[clap(long)]
+    #[clap(long, default_value = "")]
     target: String,
 
     /// remote
@@ -60,7 +61,7 @@ struct Args {
     remote: String,
 
     /// redis_address
-    #[clap(long)]
+    #[clap(long, default_value = "")]
     redis_address: String,
 
     /// redis_password
@@ -94,11 +95,23 @@ struct Args {
     ///batcher-workers
     #[clap(long, default_value = "8")]
     batcher_workers: usize,
+
+    ///inner-tls
+    #[clap(long, default_value = "true")]
+    inner_tls: bool,
+
+    ///cert-path
+    #[clap(long, default_value = "/App/tls")]
+    inner_tls_cert_path: String,
+
+    ///log-path
+    #[clap(long, default_value = "")]
+    log_path: String,
 }
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
+    let tracing_sub_ext = tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "mygo=debug".into()),
@@ -141,6 +154,8 @@ async fn main() {
                 }),
                 _ => PolicyConf::DefaultConf,
             },
+            args.inner_tls,
+            args.inner_tls_cert_path,
         )
         .await
         .unwrap(),
@@ -224,6 +239,8 @@ mod tests {
                     cache: 100,
                     batch_size: 100,
                 }),
+                true,
+                "tls".to_string(),
             )
             .await
             .unwrap();
@@ -264,6 +281,8 @@ mod tests {
                     cache: 100,
                     batch_size: 100,
                 }),
+                true,
+                "tls".to_string(),
             )
             .await
             .unwrap();

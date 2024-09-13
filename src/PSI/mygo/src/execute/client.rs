@@ -21,11 +21,8 @@ use std::iter::Iterator;
 use std::mem::transmute;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tonic::{
-    metadata::MetadataValue,
-    transport::{Channel, Endpoint},
-    Status,
-};
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
+use tonic::{metadata::MetadataValue, transport::Endpoint, Status};
 
 pub struct Client {
     curve: Curve,
@@ -33,11 +30,35 @@ pub struct Client {
     target: String,
     id: String,
     remote: String,
+    use_tls: bool,
+    cert_path: String,
 }
 
 impl Client {
-    async fn create_client(remote: String) -> Result<ExecuteServiceClient<Channel>, AppError> {
-        let conn = Endpoint::new(remote)?.connect().await?;
+    async fn create_client(
+        remote: String,
+        use_tls: bool,
+        cert_path: String,
+        lazy: bool,
+    ) -> Result<ExecuteServiceClient<Channel>, AppError> {
+        let mut conn = Endpoint::new(remote)?;
+
+        if use_tls {
+            let dir = std::path::PathBuf::from(cert_path);
+            let cert = std::fs::read_to_string(dir.join("ca.pem")).unwrap();
+            let ca = Certificate::from_pem(cert);
+            let tls = ClientTlsConfig::new().ca_certificate(ca);
+
+            conn = conn.tls_config(tls)?;
+        }
+
+        let conn = {
+            if lazy {
+                conn.connect_lazy()
+            } else {
+                conn.connect().await?
+            }
+        };
 
         Ok(ExecuteServiceClient::new(conn)
             .max_decoding_message_size(usize::max_value())
@@ -49,8 +70,12 @@ impl Client {
         remote: String,
         target: String,
         id: String,
+        use_tls: bool,
+        cert_path: String,
     ) -> Result<Client, AppError> {
-        let client = Arc::new(RwLock::new(Client::create_client(remote.clone()).await?));
+        let client = Arc::new(RwLock::new(
+            Client::create_client(remote.clone(), use_tls, cert_path.clone(), true).await?,
+        ));
 
         Ok(Client {
             curve,
@@ -58,6 +83,8 @@ impl Client {
             target,
             id,
             remote,
+            use_tls,
+            cert_path,
         })
     }
 
@@ -67,7 +94,13 @@ impl Client {
             if no_creating_client.is_err() {
                 return;
             } else {
-                let conn = Client::create_client(self.remote.clone()).await;
+                let conn = Client::create_client(
+                    self.remote.clone(),
+                    self.use_tls,
+                    self.cert_path.clone(),
+                    false,
+                )
+                .await;
                 if conn.is_err() {
                     tracing::error!("reconnect to remote failed");
                 } else {

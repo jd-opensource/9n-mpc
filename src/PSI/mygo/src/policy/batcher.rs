@@ -107,8 +107,6 @@ impl Batcher {
                     }
 
                     if (!batch.is_empty()) {
-                        tracing::info!("batch size: {}", batch.len());
-
                         let batch_req = PsiExecuteRequest {
                             header: batch[0].ipl.header.clone(),
                             keys: batch

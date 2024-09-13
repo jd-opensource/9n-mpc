@@ -50,12 +50,22 @@ pub async fn do_psi_impl(
 
     {
         let request_info = rsp.header.clone().unwrap();
-        tracing::info!(
-            "request_id[{}] code:[{}] msg:[{}]",
-            request_info.request_id,
-            request_info.code,
-            request_info.msg,
-        );
+        if request_info.code == 0 {
+            tracing::debug!(
+                "request_id[{}] code:[{}] msg:[{}]",
+                request_info.request_id,
+                request_info.code,
+                request_info.msg,
+            );
+        } else {
+            tracing::error!(
+                "request_id[{}] code:[{}] msg:[{}]",
+                request_info.request_id,
+                request_info.code,
+                request_info.msg,
+            );
+        }
+        
     }
 
     Ok(rsp.into_response())

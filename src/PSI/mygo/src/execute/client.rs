@@ -47,7 +47,7 @@ impl Client {
             let dir = std::path::PathBuf::from(cert_path);
             let cert = std::fs::read_to_string(dir.join("ca.pem")).unwrap();
             let ca = Certificate::from_pem(cert);
-            let tls = ClientTlsConfig::new().ca_certificate(ca);
+            let tls = ClientTlsConfig::new().ca_certificate(ca).domain_name("mygo");
 
             conn = conn.tls_config(tls)?;
         }

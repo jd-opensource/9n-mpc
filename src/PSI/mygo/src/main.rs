@@ -97,7 +97,7 @@ struct Args {
     batcher_workers: usize,
 
     ///inner-tls
-    #[clap(long, default_value = "true")]
+    #[clap(long)]
     inner_tls: bool,
 
     ///cert-path

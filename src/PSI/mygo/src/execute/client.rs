@@ -47,7 +47,9 @@ impl Client {
             let dir = std::path::PathBuf::from(cert_path);
             let cert = std::fs::read_to_string(dir.join("ca.pem")).unwrap();
             let ca = Certificate::from_pem(cert);
-            let tls = ClientTlsConfig::new().ca_certificate(ca).domain_name("mygo");
+            let tls = ClientTlsConfig::new()
+                .ca_certificate(ca)
+                .domain_name("mygo");
 
             conn = conn.tls_config(tls)?;
         }
@@ -114,11 +116,29 @@ impl Client {
 
 impl Client {
     pub async fn psi_execute(&self, req: &PsiExecuteRequest) -> Result<PsiExecuteResult, AppError> {
+        if !req.header.is_none() {
+            tracing::info!(
+                "request_id[{}] start psi_execute",
+                req.header.clone().unwrap().request_id
+            );
+        } else {
+            tracing::info!("request_id[unknown] start psi_execute");
+        }
+
         let keys = self.curve.encrypt_self(&req.keys)?;
         let req = PsiExecuteRequest {
             keys: keys,
             ..req.clone()
         };
+
+        if !req.header.is_none() {
+            tracing::info!(
+                "request_id[{}] end encrypt_self",
+                req.header.clone().unwrap().request_id
+            );
+        } else {
+            tracing::info!("request_id[unknown] end encrypt_self");
+        }
 
         let mut request: tonic::Request<PsiExecuteRequest> = tonic::Request::new(req);
         request

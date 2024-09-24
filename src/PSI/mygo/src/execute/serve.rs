@@ -112,7 +112,26 @@ impl ExecuteServiceImpl {
         &self,
         request: &tonic::Request<PsiExecuteRequest>,
     ) -> Result<tonic::Response<PsiExecuteResult>, AppError> {
+        if !request.get_ref().header.is_none() {
+            tracing::info!(
+                "request_id[{}] enter server",
+                request.get_ref().header.clone().unwrap().request_id
+            );
+        } else {
+            tracing::info!("request_id[unknown] enter server");
+        }
+
         let keys = self.curve.encrypt_peer(&request.get_ref().keys)?;
+
+        if !request.get_ref().header.is_none() {
+            tracing::info!(
+                "request_id[{}] end encrypt_peer",
+                request.get_ref().header.clone().unwrap().request_id
+            );
+        } else {
+            tracing::info!("request_id[unknown] end encrypt_peer");
+        }
+
         Ok(tonic::Response::new(PsiExecuteResult {
             header: back_header(&request.get_ref().header),
             keys: keys,

@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::signal;
-use tracing_appender::rolling::{daily, RollingFileAppender};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Parser, Debug, Serialize, Deserialize)]
@@ -107,19 +107,39 @@ struct Args {
     ///log-path
     #[clap(long, default_value = "")]
     log_path: String,
+
+    ///log-file-prefix
+    #[clap(long, default_value = "access.log")]
+    log_file_prefix: String,
 }
 
 #[tokio::main]
 async fn main() {
-    let tracing_sub_ext = tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "mygo=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
     let mut args = Args::parse();
+
+    if args.log_path.is_empty() {
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "RUST_LOG=debug".into()),
+            )
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "RUST_LOG=debug".into()),
+            )
+            .with(
+                tracing_subscriber::fmt::layer().with_writer(RollingFileAppender::new(
+                    Rotation::DAILY,
+                    args.log_path,
+                    args.log_file_prefix,
+                )),
+            )
+            .init();
+    }
 
     //for debug
     if args.key.is_empty() {

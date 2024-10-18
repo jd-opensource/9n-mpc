@@ -20,6 +20,7 @@ use futures::StreamExt;
 use std::iter::Iterator;
 use std::mem::transmute;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 use tonic::{metadata::MetadataValue, transport::Endpoint, Status};
@@ -53,6 +54,11 @@ impl Client {
 
             conn = conn.tls_config(tls)?;
         }
+
+        conn = conn
+            .http2_keep_alive_interval(Duration::from_secs(30))
+            .keep_alive_timeout(Duration::from_secs(10));
+        // conn.keep_alive_while_idle(true);
 
         let conn = {
             if lazy {

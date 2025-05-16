@@ -36,7 +36,7 @@ pub async fn do_psi(
 
     const MAX_KEYS: usize = 1_000;
     if req.keys.len() > MAX_KEYS {
-        return Ok(AppError::InvalidRequest(format!(
+        return Ok(AppError::new_invalid_request(format!(
             "keys length exceeds limit: {} > {}",
             req.keys.len(),
             MAX_KEYS

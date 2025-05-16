@@ -33,6 +33,20 @@ pub async fn do_psi(
     state: State<AppStateDyn>,
     req: PsiExecuteRequest,
 ) -> Result<Response, AppError> {
+
+    const MAX_KEYS: usize = 1_000;
+    if req.keys.len() > MAX_KEYS {
+        return Ok(AppError::InvalidRequest(format!(
+            "keys length exceeds limit: {} > {}",
+            req.keys.len(),
+            MAX_KEYS
+        ))
+        .into_tonic_response(&req.header)
+        .get_ref()
+        .clone()
+        .into_response());
+    }
+
     do_psi_impl(state, &req).await.or_else(|err| {
         Ok(err
             .into_tonic_response(&req.header)
